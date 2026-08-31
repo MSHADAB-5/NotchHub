@@ -5,14 +5,46 @@ import Combine
 final class ClipboardService: ObservableObject {
 
     struct ClipboardItem: Identifiable, Equatable, Codable {
+        enum ContentKind: String, Codable {
+            case text
+            case link
+            case code
+
+            var icon: String {
+                switch self {
+                case .text: return "doc.text"
+                case .link: return "link"
+                case .code: return "chevron.left.forwardslash.chevron.right"
+                }
+            }
+
+            var label: String {
+                switch self {
+                case .text: return "Text"
+                case .link: return "Link"
+                case .code: return "Code"
+                }
+            }
+        }
+
         let id: UUID
         let text: String
         let timestamp: Date
+        let kind: ContentKind
+        let sourceAppName: String?
 
-        init(id: UUID = UUID(), text: String, timestamp: Date) {
+        init(
+            id: UUID = UUID(),
+            text: String,
+            timestamp: Date,
+            kind: ContentKind? = nil,
+            sourceAppName: String? = nil
+        ) {
             self.id = id
             self.text = text
             self.timestamp = timestamp
+            self.kind = kind ?? Self.detectKind(for: text)
+            self.sourceAppName = sourceAppName
         }
 
         var preview: String {
@@ -21,8 +53,49 @@ final class ClipboardService: ObservableObject {
             return String(trimmed.prefix(77)) + "..."
         }
 
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case text
+            case timestamp
+            case kind
+            case sourceAppName
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+            text = try container.decode(String.self, forKey: .text)
+            timestamp = try container.decodeIfPresent(Date.self, forKey: .timestamp) ?? Date()
+            kind = try container.decodeIfPresent(ContentKind.self, forKey: .kind) ?? Self.detectKind(for: text)
+            sourceAppName = try container.decodeIfPresent(String.self, forKey: .sourceAppName)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(text, forKey: .text)
+            try container.encode(timestamp, forKey: .timestamp)
+            try container.encode(kind, forKey: .kind)
+            try container.encodeIfPresent(sourceAppName, forKey: .sourceAppName)
+        }
+
         static func == (lhs: ClipboardItem, rhs: ClipboardItem) -> Bool {
             lhs.id == rhs.id
+        }
+
+        private static func detectKind(for text: String) -> ContentKind {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lower = trimmed.lowercased()
+
+            if lower.hasPrefix("http://") || lower.hasPrefix("https://") {
+                return .link
+            }
+            if trimmed.contains("\n") || trimmed.contains("{") || trimmed.contains(";") ||
+                trimmed.contains("</") || lower.contains("func ") || lower.contains("let ") ||
+                lower.contains("const ") || lower.contains("class ") {
+                return .code
+            }
+            return .text
         }
     }
 
@@ -64,7 +137,15 @@ final class ClipboardService: ObservableObject {
         if let index = savedItems.firstIndex(where: { $0.text == item.text }) {
             savedItems.remove(at: index)
         } else {
-            savedItems.insert(ClipboardItem(text: item.text, timestamp: item.timestamp), at: 0)
+            savedItems.insert(
+                ClipboardItem(
+                    text: item.text,
+                    timestamp: item.timestamp,
+                    kind: item.kind,
+                    sourceAppName: item.sourceAppName
+                ),
+                at: 0
+            )
         }
         persistSavedItems()
     }
@@ -92,7 +173,11 @@ final class ClipboardService: ObservableObject {
 
         if let last = history.first, last.text == text { return }
 
-        let item = ClipboardItem(text: text, timestamp: Date())
+        let item = ClipboardItem(
+            text: text,
+            timestamp: Date(),
+            sourceAppName: NSWorkspace.shared.frontmostApplication?.localizedName
+        )
         history.insert(item, at: 0)
 
         if history.count > maxItems {

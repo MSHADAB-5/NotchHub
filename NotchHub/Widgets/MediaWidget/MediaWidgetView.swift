@@ -7,6 +7,7 @@ struct MediaWidgetView: View {
     @ObservedObject var volumeService: VolumeService
     @ObservedObject var brightnessService: BrightnessService
     @ObservedObject var settingsService: SettingsService
+    @State private var scrubbingElapsed: TimeInterval?
 
     var body: some View {
         VStack(spacing: 8) {
@@ -49,7 +50,9 @@ struct MediaWidgetView: View {
                     HStack(spacing: 6) {
                         statusChip(service.nowPlaying.isPlaying ? "Playing" : "Paused")
 
-                        if !service.nowPlaying.album.isEmpty {
+                        if !outputDeviceChipLabel.isEmpty {
+                            statusChip(outputDeviceChipLabel)
+                        } else if !service.nowPlaying.album.isEmpty {
                             statusChip("Album")
                         }
                     }
@@ -240,34 +243,22 @@ struct MediaWidgetView: View {
             let now = context.date
             let localZone = TimeZone.current
             let targetZone = configuredReferenceTimeZone
+            let localPlace = placeName(for: localZone)
+            let targetPlace = placeName(for: targetZone)
 
             HStack(spacing: 8) {
                 compactClockCard(
-                    title: "Local",
-                    zoneLabel: localZone.identifier,
+                    title: localPlace,
                     snapshot: clockSnapshot(for: now, timeZone: localZone),
                     accent: Color(red: 0.61, green: 0.91, blue: 0.76),
-                    utcOffset: utcOffsetString(for: localZone, at: now),
-                    deltaLabel: offsetDeltaString(
-                        baseZone: localZone,
-                        compareZone: TimeZone(identifier: "Europe/Paris") ?? localZone,
-                        at: now,
-                        sameLabel: "Same as CET"
-                    )
+                    utcOffset: compactUTCOffsetString(for: localZone, at: now)
                 )
 
                 compactClockCard(
-                    title: "Reference",
-                    zoneLabel: targetZone.identifier,
+                    title: targetPlace,
                     snapshot: clockSnapshot(for: now, timeZone: targetZone),
                     accent: Color(red: 1.0, green: 0.79, blue: 0.55),
-                    utcOffset: utcOffsetString(for: targetZone, at: now),
-                    deltaLabel: offsetDeltaString(
-                        baseZone: localZone,
-                        compareZone: targetZone,
-                        at: now,
-                        sameLabel: "Same as local"
-                    )
+                    utcOffset: compactUTCOffsetString(for: targetZone, at: now)
                 )
             }
         }
@@ -276,56 +267,51 @@ struct MediaWidgetView: View {
     @ViewBuilder
     private func compactClockCard(
         title: String,
-        zoneLabel: String,
         snapshot: ClockSnapshot,
         accent: Color,
-        utcOffset: String,
-        deltaLabel: String
+        utcOffset: String
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(title.uppercased())
-                    .font(.system(size: 10, weight: .semibold))
-                    .tracking(0.8)
-                    .foregroundColor(.white.opacity(0.56))
-                Spacer(minLength: 4)
-                Text(zoneLabel)
-                    .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.5))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased())
+                .font(.system(size: 9, weight: .semibold))
+                .tracking(0.6)
+                .foregroundColor(.white.opacity(0.56))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
 
-            HStack(alignment: .lastTextBaseline, spacing: 5) {
+            HStack(alignment: .lastTextBaseline, spacing: 4) {
                 Text(snapshot.hoursMinutes)
-                    .font(.system(size: 28, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 26, weight: .semibold, design: .monospaced))
                     .foregroundColor(accent)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.72)
 
                 Text(snapshot.seconds)
-                    .font(.system(size: 15, weight: .medium, design: .monospaced))
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundColor(.white.opacity(0.54))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
-            .padding(.bottom, 3)
+            .padding(.bottom, 1)
 
             Text(snapshot.dateLabel)
-                .font(.system(size: 11))
+                .font(.system(size: 10.5))
                 .foregroundColor(.white.opacity(0.58))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
 
-            HStack(spacing: 8) {
-                Text("UTC \(utcOffset)")
-                Spacer(minLength: 4)
-                Text(deltaLabel)
+            HStack(spacing: 6) {
+                Spacer(minLength: 0)
+                Text(utcOffset)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.75)
             }
-            .font(.system(size: 10))
+            .font(.system(size: 9.5))
             .foregroundColor(.white.opacity(0.5))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(.white.opacity(0.045))
@@ -390,6 +376,13 @@ struct MediaWidgetView: View {
         return "Unknown source"
     }
 
+    private var outputDeviceChipLabel: String {
+        let name = volumeService.outputDeviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return "" }
+        if name.count <= 18 { return name }
+        return String(name.prefix(17)) + "…"
+    }
+
     @ViewBuilder
     private func statusChip(_ text: String) -> some View {
         Text(text)
@@ -449,24 +442,40 @@ struct MediaWidgetView: View {
         return String(format: "%@%02d:%02d", sign, hours, minutes)
     }
 
-    private func offsetDeltaString(
-        baseZone: TimeZone,
-        compareZone: TimeZone,
-        at date: Date,
-        sameLabel: String
-    ) -> String {
-        let diffMinutes = (compareZone.secondsFromGMT(for: date) - baseZone.secondsFromGMT(for: date)) / 60
-        guard diffMinutes != 0 else { return sameLabel }
+    private func compactUTCOffsetString(for timeZone: TimeZone, at date: Date) -> String {
+        let totalMinutes = timeZone.secondsFromGMT(for: date) / 60
+        if totalMinutes == 0 { return "UTC" }
 
-        let relation = diffMinutes > 0 ? "ahead" : "behind"
-        let absMinutes = abs(diffMinutes)
-        let hours = absMinutes / 60
-        let minutes = absMinutes % 60
+        let sign = totalMinutes > 0 ? "+" : "-"
+        let absoluteMinutes = abs(totalMinutes)
+        let hours = absoluteMinutes / 60
+        let minutes = absoluteMinutes % 60
 
         if minutes == 0 {
-            return "\(hours)h \(relation)"
+            return "UTC \(sign)\(hours)"
         }
-        return "\(hours)h \(minutes)m \(relation)"
+        return "UTC \(sign)\(hours):\(String(format: "%02d", minutes))"
+    }
+
+    private func placeName(for timeZone: TimeZone) -> String {
+        let identifier = timeZone.identifier
+        if let city = identifier.split(separator: "/").last {
+            let formatted = city.replacingOccurrences(of: "_", with: " ")
+            if !formatted.isEmpty {
+                return formatted
+            }
+        }
+        if let localized = timeZone.localizedName(for: .shortStandard, locale: .current), !localized.isEmpty {
+            return localized
+        }
+        return identifier
+    }
+
+    private func shortZoneLabel(for timeZone: TimeZone, at date: Date) -> String {
+        if let abbreviation = timeZone.abbreviation(for: date), !abbreviation.isEmpty {
+            return abbreviation
+        }
+        return "UTC \(utcOffsetString(for: timeZone, at: date))"
     }
 
     // MARK: - Components
@@ -493,14 +502,15 @@ struct MediaWidgetView: View {
 
     @ViewBuilder
     private var progressBar: some View {
-        let elapsed = service.nowPlaying.currentElapsed
         let duration = service.nowPlaying.duration
-        let progress = duration > 0 ? min(max(CGFloat(elapsed / duration), 0), 1) : 0
-        let remaining = max(duration - elapsed, 0)
+        let liveElapsed = service.nowPlaying.currentElapsed
+        let displayedElapsed = min(max(scrubbingElapsed ?? liveElapsed, 0), duration)
+        let progress = duration > 0 ? min(max(CGFloat(displayedElapsed / duration), 0), 1) : 0
+        let remaining = max(duration - displayedElapsed, 0)
 
         VStack(spacing: 5) {
             GeometryReader { geo in
-                let width = geo.size.width
+                let width = max(geo.size.width, 1)
                 let fillWidth = width * progress
 
                 ZStack(alignment: .leading) {
@@ -521,19 +531,36 @@ struct MediaWidgetView: View {
                         )
                         .frame(width: fillWidth, height: 5)
 
-                    if fillWidth > 8 {
-                        Circle()
-                            .fill(.white.opacity(0.95))
-                            .frame(width: 7, height: 7)
-                            .offset(x: fillWidth - 7)
-                    }
+                    Circle()
+                        .fill(.white.opacity(0.95))
+                        .frame(width: scrubbingElapsed == nil ? 7 : 9, height: scrubbingElapsed == nil ? 7 : 9)
+                        .offset(x: min(max(fillWidth - (scrubbingElapsed == nil ? 7 : 9), 0), width - (scrubbingElapsed == nil ? 7 : 9)))
                 }
                 .frame(maxHeight: .infinity, alignment: .center)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard service.nowPlaying.canSeek else { return }
+                            let clampedProgress = min(max(value.location.x / width, 0), 1)
+                            scrubbingElapsed = duration * clampedProgress
+                        }
+                        .onEnded { value in
+                            guard service.nowPlaying.canSeek else {
+                                scrubbingElapsed = nil
+                                return
+                            }
+                            let clampedProgress = min(max(value.location.x / width, 0), 1)
+                            let target = duration * clampedProgress
+                            scrubbingElapsed = nil
+                            service.seek(to: target)
+                        }
+                )
             }
-            .frame(height: 7)
+            .frame(height: 12)
 
             HStack {
-                Text(formatTime(elapsed))
+                Text(formatTime(displayedElapsed))
                 Spacer()
                 Text("-\(formatTime(remaining))")
             }

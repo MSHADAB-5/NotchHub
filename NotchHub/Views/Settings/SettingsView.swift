@@ -7,7 +7,6 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Title bar
             HStack {
                 Text("NotchHub Settings")
                     .font(.system(size: 16, weight: .semibold))
@@ -21,6 +20,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     generalSection
+                    layoutSection
                     clockSection
                     widgetsSection
                     aboutSection
@@ -28,10 +28,8 @@ struct SettingsView: View {
                 .padding(20)
             }
         }
-        .frame(width: 420, height: 520)
+        .frame(width: 420, height: 580)
     }
-
-    // MARK: - General
 
     @ViewBuilder
     private var generalSection: some View {
@@ -39,8 +37,9 @@ struct SettingsView: View {
             sectionHeader("General")
 
             Toggle("Launch at Login", isOn: $settings.launchAtLogin)
-
             Toggle("Expand on Hover", isOn: $settings.expandOnHover)
+            Toggle("Peek Notifications", isOn: $settings.peekNotificationsEnabled)
+            Toggle("Haptic Feedback", isOn: $settings.hapticFeedback)
 
             HStack {
                 Text("Collapse Delay")
@@ -54,12 +53,43 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 220)
             }
-
-            Toggle("Haptic Feedback", isOn: $settings.hapticFeedback)
         }
     }
 
-    // MARK: - Nook Clock
+    @ViewBuilder
+    private var layoutSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("Layout")
+
+            Text("Choose the default tab and how roomy the expanded notch panel should feel.")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+
+            HStack {
+                Text("Default Tab")
+                Spacer()
+                Picker("", selection: defaultWidgetBinding) {
+                    ForEach(WidgetPage.allCases) { page in
+                        Text(tabLabel(page)).tag(page.settingsKey)
+                    }
+                }
+                .frame(width: 220)
+                .pickerStyle(.menu)
+            }
+
+            HStack {
+                Text("Panel Size")
+                Spacer()
+                Picker("", selection: $settings.panelSizePreset) {
+                    Text("Compact").tag("compact")
+                    Text("Standard").tag("standard")
+                    Text("Roomy").tag("roomy")
+                }
+                .frame(width: 220)
+                .pickerStyle(.segmented)
+            }
+        }
+    }
 
     @ViewBuilder
     private var clockSection: some View {
@@ -84,8 +114,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Widgets
-
     @ViewBuilder
     private var widgetsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -107,8 +135,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - About
-
     @ViewBuilder
     private var aboutSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -127,13 +153,24 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Helpers
-
     @ViewBuilder
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
             .font(.system(size: 13, weight: .bold))
             .foregroundColor(.primary)
+    }
+
+    private var defaultWidgetBinding: Binding<String> {
+        Binding(
+            get: { settings.defaultWidgetKey },
+            set: { newValue in
+                settings.defaultWidgetKey = newValue
+                if let page = WidgetPage.from(settingsKey: newValue),
+                   settings.enabledWidgets.contains(page.settingsKey) {
+                    widgetRegistry.currentPage = page
+                }
+            }
+        )
     }
 
     private func widgetBinding(for page: WidgetPage) -> Binding<Bool> {
@@ -145,12 +182,35 @@ struct SettingsView: View {
                 } else {
                     settings.enabledWidgets.remove(page.settingsKey)
                 }
-                // Update the registry's enabled pages
+
                 widgetRegistry.enabledPages = WidgetPage.allCases.filter {
                     settings.enabledWidgets.contains($0.settingsKey)
                 }
+
+                if !widgetRegistry.enabledPages.contains(widgetRegistry.currentPage),
+                   let fallback = preferredAvailablePage() {
+                    widgetRegistry.currentPage = fallback
+                }
             }
         )
+    }
+
+    private func preferredAvailablePage() -> WidgetPage? {
+        if let preferred = WidgetPage.from(settingsKey: settings.defaultWidgetKey),
+           settings.enabledWidgets.contains(preferred.settingsKey) {
+            return preferred
+        }
+        return widgetRegistry.enabledPages.first
+    }
+
+    private func tabLabel(_ page: WidgetPage) -> String {
+        switch page {
+        case .media: return "Nook"
+        case .quickActions: return "Actions"
+        case .battery: return "Power"
+        case .clipboard: return "Tray"
+        case .timer: return "Timer"
+        }
     }
 
     private struct ClockTimeZoneOption: Identifiable {
@@ -175,19 +235,5 @@ struct SettingsView: View {
             ClockTimeZoneOption(identifier: "Asia/Tokyo", label: "Japan - Tokyo"),
             ClockTimeZoneOption(identifier: "Australia/Sydney", label: "Australia - Sydney")
         ]
-    }
-}
-
-// MARK: - WidgetPage settings key mapping
-
-extension WidgetPage {
-    var settingsKey: String {
-        switch self {
-        case .media: return "media"
-        case .quickActions: return "quickActions"
-        case .battery: return "battery"
-        case .clipboard: return "clipboard"
-        case .timer: return "timer"
-        }
     }
 }

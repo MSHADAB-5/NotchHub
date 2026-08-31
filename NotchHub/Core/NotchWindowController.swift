@@ -15,17 +15,16 @@ final class NotchWindowController: NSObject, ObservableObject {
 
     let screenDetector: ScreenDetector
     let viewModel: NotchViewModel
+    let settingsService: SettingsService
 
-    // Expanded panel dimensions
-    private let expandedWidth: CGFloat = 620
-    private let expandedHeight: CGFloat = 376
+    private let minimumExpandedWidth: CGFloat = 420
 
-    init(screenDetector: ScreenDetector, viewModel: NotchViewModel) {
+    init(screenDetector: ScreenDetector, viewModel: NotchViewModel, settingsService: SettingsService) {
         self.screenDetector = screenDetector
         self.viewModel = viewModel
+        self.settingsService = settingsService
         super.init()
 
-        // React to state changes to resize the panel
         viewModel.$state
             .removeDuplicates()
             .receive(on: RunLoop.main)
@@ -34,7 +33,6 @@ final class NotchWindowController: NSObject, ObservableObject {
             }
             .store(in: &cancellables)
 
-        // React to screen changes
         screenDetector.$geometry
             .compactMap { $0 }
             .receive(on: RunLoop.main)
@@ -42,9 +40,15 @@ final class NotchWindowController: NSObject, ObservableObject {
                 self?.repositionPanel()
             }
             .store(in: &cancellables)
-    }
 
-    // MARK: - Panel Setup
+        settingsService.$panelSizePreset
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.updatePanelFrame(for: self.viewModel.state)
+            }
+            .store(in: &cancellables)
+    }
 
     func setupPanel<Content: View>(@ViewBuilder content: () -> Content) {
         guard let geometry = screenDetector.geometry else { return }
@@ -70,8 +74,6 @@ final class NotchWindowController: NSObject, ObservableObject {
         panel.hidesOnDeactivate = false
         panel.ignoresMouseEvents = false
 
-        // Host the SwiftUI view — glass material is rendered by SwiftUI,
-        // clipped to NotchShape. Panel and hosting view are fully transparent.
         let hosting = NSHostingView(rootView: wrappedView)
         hosting.frame = panel.contentView?.bounds ?? .zero
         hosting.autoresizingMask = [.width, .height]
@@ -87,8 +89,6 @@ final class NotchWindowController: NSObject, ObservableObject {
 
         panel.orderFrontRegardless()
     }
-
-    // MARK: - Mouse Tracking via Polling
 
     private func setupMouseTracking() {
         mousePollingTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 20.0, repeats: true) { [weak self] _ in
@@ -124,8 +124,6 @@ final class NotchWindowController: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - Click Outside Monitor
-
     private func setupClickOutsideMonitor() {
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             guard let self, self.viewModel.isExpanded else { return }
@@ -137,8 +135,6 @@ final class NotchWindowController: NSObject, ObservableObject {
             }
         }
     }
-
-    // MARK: - Panel Frame Management
 
     private func updatePanelFrame(for state: NotchState) {
         guard let geometry = screenDetector.geometry else { return }
@@ -179,11 +175,8 @@ final class NotchWindowController: NSObject, ObservableObject {
         panel?.setFrame(rect, display: true)
     }
 
-    // MARK: - Rect Calculations
-
-    /// The collapsed rect: exactly covers the notch area.
     private func collapsedRect(for geometry: ScreenDetector.NotchGeometry) -> NSRect {
-        return NSRect(
+        NSRect(
             x: geometry.notchRect.origin.x,
             y: geometry.notchRect.origin.y,
             width: geometry.notchWidth,
@@ -191,28 +184,36 @@ final class NotchWindowController: NSObject, ObservableObject {
         )
     }
 
-    /// The expanded rect: wider panel dropping down from the notch.
     private func expandedRect(for geometry: ScreenDetector.NotchGeometry) -> NSRect {
-        let maxAllowedWidth = (screenDetector.currentScreen?.frame.width ?? expandedWidth) - 80
-        let width = max(420, min(expandedWidth, maxAllowedWidth))
-        let height = expandedHeight
+        let size = expandedSize
+        let maxAllowedWidth = (screenDetector.currentScreen?.frame.width ?? size.width) - 80
+        let width = max(minimumExpandedWidth, min(size.width, maxAllowedWidth))
+        let height = size.height
         let centerX = geometry.notchRect.midX - width / 2
         let topY = geometry.notchRect.maxY - height
 
         return NSRect(x: centerX, y: topY, width: width, height: height)
     }
 
-    /// The peek rect: slightly shorter than expanded.
     private func peekRect(for geometry: ScreenDetector.NotchGeometry) -> NSRect {
-        let width: CGFloat = 340
-        let height: CGFloat = 80
+        let width: CGFloat = 360
+        let height: CGFloat = 102
         let centerX = geometry.notchRect.midX - width / 2
         let topY = geometry.notchRect.maxY - height
 
         return NSRect(x: centerX, y: topY, width: width, height: height)
     }
 
-    // MARK: - Cleanup
+    private var expandedSize: CGSize {
+        switch settingsService.panelSizePreset {
+        case "compact":
+            return CGSize(width: 580, height: 352)
+        case "roomy":
+            return CGSize(width: 660, height: 404)
+        default:
+            return CGSize(width: 620, height: 376)
+        }
+    }
 
     func tearDown() {
         mousePollingTimer?.invalidate()

@@ -20,6 +20,20 @@ enum WidgetPage: String, CaseIterable, Identifiable {
         case .timer: return "timer"
         }
     }
+
+    var settingsKey: String {
+        switch self {
+        case .media: return "media"
+        case .quickActions: return "quickActions"
+        case .battery: return "battery"
+        case .clipboard: return "clipboard"
+        case .timer: return "timer"
+        }
+    }
+
+    static func from(settingsKey: String) -> WidgetPage? {
+        allCases.first { $0.settingsKey == settingsKey }
+    }
 }
 
 /// Manages which widgets are available and their ordering.

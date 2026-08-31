@@ -3,7 +3,8 @@ import SwiftUI
 /// Clipboard history — tap to re-copy.
 struct ClipboardWidgetView: View {
     @ObservedObject var service: ClipboardService
-    @State private var filter: TrayFilter = .all
+    @State private var kindFilter: KindFilter = .all
+    @State private var searchText = ""
 
     var body: some View {
         VStack(spacing: 10) {
@@ -34,22 +35,55 @@ struct ClipboardWidgetView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
             } else {
-                VStack(spacing: 10) {
-                    if !service.savedItems.isEmpty && filter != .recent {
-                        savedSection
-                    }
-
-                    if !service.savedItems.isEmpty && !recentItems.isEmpty {
-                        filterChips
-                    }
-
-                    if filter != .saved {
-                        recentSection
-                    }
-                }
+                searchField
+                filterChips
+                savedSection
+                recentSection
             }
         }
         .glassCard(cornerRadius: 14, padding: 12)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.3))
+
+            TextField("Search clipboard", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.8))
+
+            if !searchText.isEmpty {
+                Button(action: { searchText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.28))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 28)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(.white.opacity(0.045))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .stroke(.white.opacity(0.05), lineWidth: 0.5)
+                )
+        )
+    }
+
+    private var filterChips: some View {
+        HStack(spacing: 8) {
+            filterChip(.all)
+            filterChip(.text)
+            filterChip(.link)
+            filterChip(.code)
+            Spacer(minLength: 0)
+        }
     }
 
     private var savedSection: some View {
@@ -60,35 +94,33 @@ struct ClipboardWidgetView: View {
                     .tracking(0.8)
                     .foregroundColor(.white.opacity(0.34))
                 Spacer()
-                Text("\(service.savedItems.count)")
+                Text("\(filteredSavedItems.count)")
                     .font(.system(size: 11))
                     .foregroundColor(.white.opacity(0.24))
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Array(service.savedItems.prefix(8))) { item in
-                        savedChip(item)
+            if filteredSavedItems.isEmpty {
+                Text(searchText.isEmpty ? "No saved items" : "No saved matches")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.24))
+                    .padding(.vertical, 4)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(filteredSavedItems.prefix(8))) { item in
+                            savedChip(item)
+                        }
                     }
+                    .padding(.vertical, 1)
                 }
-                .padding(.vertical, 1)
             }
-        }
-    }
-
-    private var filterChips: some View {
-        HStack(spacing: 8) {
-            filterChip(.all, title: "All")
-            filterChip(.saved, title: "Saved")
-            filterChip(.recent, title: "Recent")
-            Spacer(minLength: 0)
         }
     }
 
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(filter == .recent ? "RECENT" : "STACK")
+                Text("RECENT")
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(0.8)
                     .foregroundColor(.white.opacity(0.34))
@@ -101,7 +133,7 @@ struct ClipboardWidgetView: View {
             }
 
             if displayedRecentItems.isEmpty {
-                Text("No recent items")
+                Text(searchText.isEmpty ? "No recent items" : "No recent matches")
                     .font(.system(size: 12))
                     .foregroundColor(.white.opacity(0.24))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -120,9 +152,9 @@ struct ClipboardWidgetView: View {
         HStack(spacing: 0) {
             Button(action: { service.copyToClipboard(item) }) {
                 HStack(spacing: 6) {
-                    Image(systemName: "star.fill")
+                    Image(systemName: item.kind.icon)
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(.yellow.opacity(0.9))
+                        .foregroundColor(color(for: item.kind).opacity(0.92))
                     Text(savedChipLabel(for: item))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.white.opacity(0.82))
@@ -133,7 +165,7 @@ struct ClipboardWidgetView: View {
                 .frame(height: 24)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(.yellow.opacity(0.12))
+                        .fill(color(for: item.kind).opacity(0.12))
                 )
             }
             .buttonStyle(.plain)
@@ -141,11 +173,11 @@ struct ClipboardWidgetView: View {
             Button(action: { service.removeSavedItem(item) }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(.yellow.opacity(0.88))
+                    .foregroundColor(color(for: item.kind).opacity(0.9))
                     .frame(width: 18, height: 24)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(.yellow.opacity(0.12))
+                            .fill(color(for: item.kind).opacity(0.12))
                     )
             }
             .buttonStyle(.plain)
@@ -153,20 +185,20 @@ struct ClipboardWidgetView: View {
         .clipShape(Capsule(style: .continuous))
         .overlay(
             Capsule(style: .continuous)
-                .stroke(.yellow.opacity(0.16), lineWidth: 0.5)
+                .stroke(color(for: item.kind).opacity(0.16), lineWidth: 0.5)
         )
     }
 
-    private func filterChip(_ trayFilter: TrayFilter, title: String) -> some View {
-        Button(action: { filter = trayFilter }) {
-            Text(title)
+    private func filterChip(_ filter: KindFilter) -> some View {
+        Button(action: { kindFilter = filter }) {
+            Text(filter.title)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(filter == trayFilter ? .white.opacity(0.82) : .white.opacity(0.45))
+                .foregroundColor(kindFilter == filter ? .white.opacity(0.82) : .white.opacity(0.45))
                 .padding(.horizontal, 10)
                 .frame(height: 24)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(filter == trayFilter ? .white.opacity(0.11) : .white.opacity(0.05))
+                        .fill(kindFilter == filter ? .white.opacity(0.11) : .white.opacity(0.05))
                 )
         }
         .buttonStyle(.plain)
@@ -175,22 +207,37 @@ struct ClipboardWidgetView: View {
     private func recentRow(_ item: ClipboardService.ClipboardItem) -> some View {
         HStack(spacing: 8) {
             Button(action: { service.copyToClipboard(item) }) {
-                HStack(spacing: 8) {
-                    Image(systemName: rowSymbol(for: item))
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: item.kind.icon)
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.36))
+                        .foregroundColor(color(for: item.kind).opacity(0.9))
                         .frame(width: 12)
+                        .padding(.top, 2)
 
-                    Text(item.preview)
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.72))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.preview)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.72))
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        HStack(spacing: 6) {
+                            Text(item.sourceAppName?.isEmpty == false ? item.sourceAppName! : "Clipboard")
+                            Text("•")
+                            Text(item.kind.label)
+                        }
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.28))
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Spacer(minLength: 8)
 
                     Text(timeAgo(item.timestamp))
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.24))
                         .fixedSize()
+                        .padding(.top, 1)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
@@ -225,13 +272,30 @@ struct ClipboardWidgetView: View {
         service.history.filter { !service.isSaved($0) }
     }
 
+    private var filteredSavedItems: [ClipboardService.ClipboardItem] {
+        service.savedItems.filter(matchesFilter)
+    }
+
+    private var filteredRecentItems: [ClipboardService.ClipboardItem] {
+        recentItems.filter(matchesFilter)
+    }
+
     private var displayedRecentItems: [ClipboardService.ClipboardItem] {
-        let limit = filter == .recent ? 5 : 3
-        return Array(recentItems.prefix(limit))
+        Array(filteredRecentItems.prefix(4))
     }
 
     private var remainingRecentCount: Int {
-        max(0, recentItems.count - displayedRecentItems.count)
+        max(0, filteredRecentItems.count - displayedRecentItems.count)
+    }
+
+    private func matchesFilter(_ item: ClipboardService.ClipboardItem) -> Bool {
+        if kindFilter != .all && item.kind != kindFilter.contentKind {
+            return false
+        }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return true }
+        let haystacks = [item.text, item.preview, item.sourceAppName ?? "", item.kind.label]
+        return haystacks.contains { $0.localizedCaseInsensitiveContains(query) }
     }
 
     private func savedChipLabel(for item: ClipboardService.ClipboardItem) -> String {
@@ -242,15 +306,15 @@ struct ClipboardWidgetView: View {
         return String(text.prefix(18))
     }
 
-    private func rowSymbol(for item: ClipboardService.ClipboardItem) -> String {
-        let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.contains("http://") || text.contains("https://") {
-            return "link"
+    private func color(for kind: ClipboardService.ClipboardItem.ContentKind) -> Color {
+        switch kind {
+        case .text:
+            return .yellow
+        case .link:
+            return Color(red: 0.54, green: 0.86, blue: 1.0)
+        case .code:
+            return Color(red: 1.0, green: 0.79, blue: 0.55)
         }
-        if text.contains("{") || text.contains(";") || text.contains("</") || text.contains("func ") {
-            return "chevron.left.forwardslash.chevron.right"
-        }
-        return "doc.text"
     }
 
     private func timeAgo(_ date: Date) -> String {
@@ -260,9 +324,30 @@ struct ClipboardWidgetView: View {
         return "\(seconds / 3600)h"
     }
 
-    private enum TrayFilter {
+    private enum KindFilter: Equatable {
         case all
-        case saved
-        case recent
+        case text
+        case link
+        case code
+
+        var title: String {
+            switch self {
+            case .all: return "All"
+            case .text: return "Text"
+            case .link: return "Links"
+            case .code: return "Code"
+            }
+        }
+
+        var contentKind: ClipboardService.ClipboardItem.ContentKind {
+            switch self {
+            case .all, .text:
+                return .text
+            case .link:
+                return .link
+            case .code:
+                return .code
+            }
+        }
     }
 }
