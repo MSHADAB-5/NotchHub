@@ -125,25 +125,26 @@ struct ClipboardWidgetView: View {
                     .tracking(0.8)
                     .foregroundColor(.white.opacity(0.34))
                 Spacer()
-                if remainingRecentCount > 0 {
-                    Text("+\(remainingRecentCount) more")
-                        .font(.system(size: 11))
-                        .foregroundColor(.white.opacity(0.24))
-                }
+                Text("\(filteredRecentItems.count)")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.24))
             }
 
-            if displayedRecentItems.isEmpty {
+            if filteredRecentItems.isEmpty {
                 Text(searchText.isEmpty ? "No recent items" : "No recent matches")
                     .font(.system(size: 12))
                     .foregroundColor(.white.opacity(0.24))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 8)
             } else {
-                VStack(spacing: 6) {
-                    ForEach(displayedRecentItems) { item in
-                        recentRow(item)
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 6) {
+                        ForEach(filteredRecentItems) { item in
+                            recentRow(item)
+                        }
                     }
                 }
+                .frame(maxHeight: .infinity)
             }
         }
     }
@@ -280,16 +281,8 @@ struct ClipboardWidgetView: View {
         recentItems.filter(matchesFilter)
     }
 
-    private var displayedRecentItems: [ClipboardService.ClipboardItem] {
-        Array(filteredRecentItems.prefix(4))
-    }
-
-    private var remainingRecentCount: Int {
-        max(0, filteredRecentItems.count - displayedRecentItems.count)
-    }
-
     private func matchesFilter(_ item: ClipboardService.ClipboardItem) -> Bool {
-        if kindFilter != .all && item.kind != kindFilter.contentKind {
+        if let kind = kindFilter.contentKind, item.kind != kind {
             return false
         }
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -339,9 +332,11 @@ struct ClipboardWidgetView: View {
             }
         }
 
-        var contentKind: ClipboardService.ClipboardItem.ContentKind {
+        var contentKind: ClipboardService.ClipboardItem.ContentKind? {
             switch self {
-            case .all, .text:
+            case .all:
+                return nil
+            case .text:
                 return .text
             case .link:
                 return .link

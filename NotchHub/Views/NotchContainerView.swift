@@ -70,8 +70,7 @@ struct NotchContainerView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 7)
                 .padding(.bottom, 10)
-
-            Spacer(minLength: 0)
+                .frame(maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.98))

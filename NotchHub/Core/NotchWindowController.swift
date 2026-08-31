@@ -2,6 +2,14 @@ import AppKit
 import SwiftUI
 import Combine
 
+/// A borderless panel that can become the key window so text fields
+/// (e.g. the clipboard search box) can receive keyboard input without
+/// activating the application.
+private final class NotchPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+}
+
 /// Manages the borderless NSPanel that overlays the notch area.
 /// Handles positioning, hover tracking, and hosting the SwiftUI content.
 final class NotchWindowController: NSObject, ObservableObject {
@@ -55,7 +63,7 @@ final class NotchWindowController: NSObject, ObservableObject {
 
         let wrappedView = AnyView(content())
 
-        let panel = NSPanel(
+        let panel = NotchPanel(
             contentRect: collapsedRect(for: geometry),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -73,6 +81,7 @@ final class NotchWindowController: NSObject, ObservableObject {
         panel.acceptsMouseMovedEvents = true
         panel.hidesOnDeactivate = false
         panel.ignoresMouseEvents = false
+        panel.becomesKeyOnlyIfNeeded = true
 
         let hosting = NSHostingView(rootView: wrappedView)
         hosting.frame = panel.contentView?.bounds ?? .zero
