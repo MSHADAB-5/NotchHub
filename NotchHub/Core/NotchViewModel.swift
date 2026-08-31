@@ -13,22 +13,26 @@ enum NotchState: Equatable {
 /// Drives the expand/collapse state machine with Combine publishers.
 final class NotchViewModel: ObservableObject {
 
+    struct PeekContent {
+        let id: String
+        let systemImage: String
+        let title: String
+        let subtitle: String
+        let tint: Color
+    }
+
     @Published private(set) var state: NotchState = .collapsed
+    @Published private(set) var peekContent: PeekContent?
     @Published var expandedWidth: CGFloat = 420
     @Published var expandedHeight: CGFloat = 200
 
-    /// How long the mouse must dwell before we expand (ms).
     var hoverDelayMs: Int = 200
-    /// How long after mouse-exit before we collapse (ms).
     var collapseDelayMs: Int = 400
-    /// Multiplier for animation durations.
     var animationSpeed: Double = 1.0
 
     private var hoverTimer: DispatchWorkItem?
     private var collapseTimer: DispatchWorkItem?
     private var peekTimer: DispatchWorkItem?
-
-    // MARK: - Computed Properties
 
     var isExpanded: Bool {
         switch state {
@@ -43,8 +47,6 @@ final class NotchViewModel: ObservableObject {
         state == .pinned
     }
 
-    // MARK: - Animation
-
     var expandAnimation: Animation {
         .spring(response: 0.35 * animationSpeed, dampingFraction: 0.7, blendDuration: 0.1)
     }
@@ -52,8 +54,6 @@ final class NotchViewModel: ObservableObject {
     var collapseAnimation: Animation {
         .spring(response: 0.25 * animationSpeed, dampingFraction: 0.85, blendDuration: 0.05)
     }
-
-    // MARK: - State Transitions
 
     func mouseEntered() {
         cancelCollapseTimer()
@@ -96,7 +96,7 @@ final class NotchViewModel: ObservableObject {
                 execute: work
             )
         case .pinned, .peeking:
-            break // Don't auto-collapse when pinned or peeking
+            break
         case .collapsed:
             break
         }
@@ -110,6 +110,7 @@ final class NotchViewModel: ObservableObject {
             }
         case .pinned:
             withAnimation(collapseAnimation) {
+                clearPeek()
                 state = .collapsed
             }
         default:
@@ -119,12 +120,9 @@ final class NotchViewModel: ObservableObject {
 
     func clickedOutside() {
         switch state {
-        case .expanded:
+        case .expanded, .pinned, .peeking:
             withAnimation(collapseAnimation) {
-                state = .collapsed
-            }
-        case .pinned:
-            withAnimation(collapseAnimation) {
+                clearPeek()
                 state = .collapsed
             }
         default:
@@ -137,13 +135,21 @@ final class NotchViewModel: ObservableObject {
         cancelCollapseTimer()
         cancelPeekTimer()
         withAnimation(collapseAnimation) {
+            clearPeek()
             state = .collapsed
         }
     }
 
-    /// Show a transient peek notification, auto-collapses after a duration.
-    func showPeek(id: String, duration: TimeInterval = 2.5) {
+    func showPeek(
+        id: String,
+        systemImage: String,
+        title: String,
+        subtitle: String = "",
+        tint: Color = .white,
+        duration: TimeInterval = 2.5
+    ) {
         cancelPeekTimer()
+        peekContent = PeekContent(id: id, systemImage: systemImage, title: title, subtitle: subtitle, tint: tint)
         withAnimation(expandAnimation) {
             state = .peeking(id: id)
         }
@@ -152,6 +158,7 @@ final class NotchViewModel: ObservableObject {
             guard let self else { return }
             if case .peeking = self.state {
                 withAnimation(self.collapseAnimation) {
+                    self.clearPeek()
                     self.state = .collapsed
                 }
             }
@@ -163,7 +170,9 @@ final class NotchViewModel: ObservableObject {
         )
     }
 
-    // MARK: - Timer Management
+    private func clearPeek() {
+        peekContent = nil
+    }
 
     private func cancelHoverTimer() {
         hoverTimer?.cancel()

@@ -7,6 +7,34 @@ import Combine
 final class NowPlayingService: ObservableObject {
 
     struct NowPlayingInfo {
+        enum ShuffleMode: Int {
+            case off = 1
+            case albums = 2
+            case songs = 3
+
+            var label: String {
+                switch self {
+                case .off: return "Shuffle Off"
+                case .albums: return "Shuffle Albums"
+                case .songs: return "Shuffle Songs"
+                }
+            }
+        }
+
+        enum RepeatMode: Int {
+            case off = 1
+            case one = 2
+            case all = 3
+
+            var label: String {
+                switch self {
+                case .off: return "Repeat Off"
+                case .one: return "Repeat One"
+                case .all: return "Repeat All"
+                }
+            }
+        }
+
         var title: String = ""
         var artist: String = ""
         var album: String = ""
@@ -16,6 +44,16 @@ final class NowPlayingService: ObservableObject {
         var isPlaying: Bool = false
         var playbackRate: Double = 0
         var lastTimestamp: TimeInterval = 0
+        var sourceAppName: String = ""
+        var sourceBundleIdentifier: String = ""
+        var sourcePID: Int32 = 0
+        var shuffleModeRawValue: Int = ShuffleMode.off.rawValue
+        var repeatModeRawValue: Int = RepeatMode.off.rawValue
+        var supportsBack15: Bool = false
+        var supportsForward15: Bool = false
+        var queueIndex: Int = -1
+        var totalQueueCount: Int = 0
+        var prohibitsSkip: Bool = false
 
         var hasContent: Bool { !title.isEmpty }
 
@@ -26,6 +64,23 @@ final class NowPlayingService: ObservableObject {
             }
             let timeSinceUpdate = Date().timeIntervalSince1970 - lastTimestamp
             return min(elapsedTime + timeSinceUpdate * playbackRate, duration)
+        }
+
+        var canSeek: Bool {
+            duration > 0
+        }
+
+        var shuffleMode: ShuffleMode? {
+            ShuffleMode(rawValue: shuffleModeRawValue)
+        }
+
+        var repeatMode: RepeatMode? {
+            RepeatMode(rawValue: repeatModeRawValue)
+        }
+
+        var queuePositionLabel: String? {
+            guard totalQueueCount > 0, queueIndex >= 0 else { return nil }
+            return "\(queueIndex + 1) of \(totalQueueCount)"
         }
     }
 
@@ -38,9 +93,7 @@ final class NowPlayingService: ObservableObject {
     init() {
         locateHelperScript()
         if helperScriptPath != nil {
-            // Initial fetch
             fetchNowPlayingInfo()
-            // Periodic refresh every 2 seconds (script invocation has overhead)
             refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
                 self?.fetchNowPlayingInfo()
             }
@@ -60,24 +113,19 @@ final class NowPlayingService: ObservableObject {
     // MARK: - Helper Script Location
 
     private func locateHelperScript() {
-        // Check inside .app bundle first
         if let bundlePath = Bundle.main.path(forResource: "nowplaying", ofType: "swift", inDirectory: "Scripts") {
             helperScriptPath = bundlePath
             NSLog("[NotchHub] Helper found via Bundle.main: %@", bundlePath)
             return
         }
 
-        // Fallback: look relative to the executable
         let execPath = ProcessInfo.processInfo.arguments[0]
         let execURL = URL(fileURLWithPath: execPath)
         let candidates = [
-            // Inside .app bundle: Contents/MacOS/../Resources/Scripts/
             execURL.deletingLastPathComponent()
                 .appendingPathComponent("../Resources/Scripts/nowplaying.swift"),
-            // SPM build directory: look up to source tree
             execURL.deletingLastPathComponent()
                 .appendingPathComponent("../../../../NotchHub/Resources/Scripts/nowplaying.swift"),
-            // Development: look in source tree relative to cwd
             URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
                 .appendingPathComponent("NotchHub/Resources/Scripts/nowplaying.swift"),
         ]
@@ -127,13 +175,30 @@ final class NowPlayingService: ObservableObject {
         updated.title = newTitle
         updated.artist = newArtist
         updated.album = json["album"] as? String ?? ""
-        updated.duration = json["duration"] as? Double ?? 0
-        updated.elapsedTime = json["elapsed"] as? Double ?? 0
+        updated.duration = doubleValue(json["duration"])
+        updated.elapsedTime = doubleValue(json["elapsed"])
         updated.isPlaying = json["isPlaying"] as? Bool ?? false
-        updated.playbackRate = json["rate"] as? Double ?? 0
-        updated.lastTimestamp = json["timestamp"] as? Double ?? 0
+        updated.playbackRate = doubleValue(json["rate"])
+        updated.lastTimestamp = doubleValue(json["timestamp"])
+        updated.shuffleModeRawValue = intValue(json["shuffleMode"], defaultValue: NowPlayingInfo.ShuffleMode.off.rawValue)
+        updated.repeatModeRawValue = intValue(json["repeatMode"], defaultValue: NowPlayingInfo.RepeatMode.off.rawValue)
+        updated.supportsBack15 = json["supportsBack15"] as? Bool ?? false
+        updated.supportsForward15 = json["supportsForward15"] as? Bool ?? false
+        updated.queueIndex = intValue(json["queueIndex"], defaultValue: -1)
+        updated.totalQueueCount = intValue(json["totalQueueCount"], defaultValue: 0)
+        updated.prohibitsSkip = json["prohibitsSkip"] as? Bool ?? false
 
-        // Decode artwork if track changed
+        let sourcePID = intValue(json["sourcePID"], defaultValue: 0)
+        updated.sourcePID = Int32(sourcePID)
+        if sourcePID > 0,
+           let app = NSRunningApplication(processIdentifier: pid_t(sourcePID)) {
+            updated.sourceAppName = app.localizedName ?? ""
+            updated.sourceBundleIdentifier = app.bundleIdentifier ?? ""
+        } else {
+            updated.sourceAppName = ""
+            updated.sourceBundleIdentifier = ""
+        }
+
         if newTitle != nowPlaying.title || newArtist != nowPlaying.artist {
             if let b64 = json["artworkBase64"] as? String,
                !b64.isEmpty,
@@ -150,9 +215,11 @@ final class NowPlayingService: ObservableObject {
     // MARK: - Playback Controls
 
     func togglePlayPause() {
-        sendCommand("play")
-        // Optimistically toggle state
-        nowPlaying.isPlaying.toggle()
+        sendCommand("play") { info in
+            info.isPlaying.toggle()
+            info.playbackRate = info.isPlaying ? max(info.playbackRate, 1) : 0
+            info.lastTimestamp = Date().timeIntervalSince1970
+        }
     }
 
     func nextTrack() {
@@ -163,12 +230,69 @@ final class NowPlayingService: ObservableObject {
         sendCommand("prev")
     }
 
-    private func sendCommand(_ cmd: String) {
+    func skipBackward15() {
+        guard nowPlaying.supportsBack15 else { return }
+        sendCommand("back15", refreshDelay: 0.25) { info in
+            info.elapsedTime = max(info.currentElapsed - 15, 0)
+            info.lastTimestamp = Date().timeIntervalSince1970
+        }
+    }
+
+    func skipForward15() {
+        guard nowPlaying.supportsForward15 else { return }
+        sendCommand("fwd15", refreshDelay: 0.25) { info in
+            info.elapsedTime = min(info.currentElapsed + 15, info.duration)
+            info.lastTimestamp = Date().timeIntervalSince1970
+        }
+    }
+
+    func toggleShuffleMode() {
+        sendCommand("shuffle", refreshDelay: 0.25) { info in
+            let next: Int
+            switch info.shuffleMode ?? .off {
+            case .off: next = NowPlayingInfo.ShuffleMode.songs.rawValue
+            case .songs: next = NowPlayingInfo.ShuffleMode.albums.rawValue
+            case .albums: next = NowPlayingInfo.ShuffleMode.off.rawValue
+            }
+            info.shuffleModeRawValue = next
+        }
+    }
+
+    func toggleRepeatMode() {
+        sendCommand("repeat", refreshDelay: 0.25) { info in
+            let next: Int
+            switch info.repeatMode ?? .off {
+            case .off: next = NowPlayingInfo.RepeatMode.all.rawValue
+            case .all: next = NowPlayingInfo.RepeatMode.one.rawValue
+            case .one: next = NowPlayingInfo.RepeatMode.off.rawValue
+            }
+            info.repeatModeRawValue = next
+        }
+    }
+
+    func seek(to seconds: TimeInterval) {
+        let clamped = max(0, min(seconds, nowPlaying.duration))
+        sendCommand("seek", argument: String(clamped), refreshDelay: 0.2) { info in
+            info.elapsedTime = clamped
+            info.lastTimestamp = Date().timeIntervalSince1970
+        }
+    }
+
+    private func sendCommand(
+        _ cmd: String,
+        argument: String? = nil,
+        refreshDelay: TimeInterval = 0.5,
+        optimisticUpdate: ((inout NowPlayingInfo) -> Void)? = nil
+    ) {
         guard let scriptPath = helperScriptPath else { return }
+        if let optimisticUpdate {
+            var updated = nowPlaying
+            optimisticUpdate(&updated)
+            nowPlaying = updated
+        }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            _ = self?.runHelper(scriptPath: scriptPath, command: cmd)
-            // Refresh info after a short delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            _ = self?.runHelper(scriptPath: scriptPath, command: cmd, argument: argument)
+            DispatchQueue.main.asyncAfter(deadline: .now() + refreshDelay) { [weak self] in
                 self?.fetchNowPlayingInfo()
             }
         }
@@ -176,10 +300,14 @@ final class NowPlayingService: ObservableObject {
 
     // MARK: - Helper Process
 
-    private func runHelper(scriptPath: String, command: String) -> [String: Any]? {
+    private func runHelper(scriptPath: String, command: String, argument: String? = nil) -> [String: Any]? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
-        task.arguments = [scriptPath, command]
+        if let argument {
+            task.arguments = [scriptPath, command, argument]
+        } else {
+            task.arguments = [scriptPath, command]
+        }
         task.standardError = FileHandle.nullDevice
 
         let pipe = Pipe()
@@ -192,7 +320,6 @@ final class NowPlayingService: ObservableObject {
             return nil
         }
 
-        // Read data first (before waitUntilExit to avoid pipe deadlock with large output)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         task.waitUntilExit()
 
@@ -208,5 +335,19 @@ final class NowPlayingService: ObservableObject {
         }
 
         return json
+    }
+
+    private func doubleValue(_ value: Any?) -> Double {
+        if let value = value as? Double { return value }
+        if let value = value as? NSNumber { return value.doubleValue }
+        if let value = value as? String, let parsed = Double(value) { return parsed }
+        return 0
+    }
+
+    private func intValue(_ value: Any?, defaultValue: Int) -> Int {
+        if let value = value as? Int { return value }
+        if let value = value as? NSNumber { return value.intValue }
+        if let value = value as? String, let parsed = Int(value) { return parsed }
+        return defaultValue
     }
 }

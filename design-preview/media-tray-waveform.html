@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Media Tray Waveform</title>
+  <style>
+    :root {
+      --bg: #0b0f18;
+      --text: #f4f6ff;
+      --muted: rgba(226,234,255,0.62);
+      --line: rgba(255,255,255,0.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #0a0e14, #14111b);
+      font-family: "Avenir Next", "SF Pro Display", sans-serif;
+      color: var(--text);
+      padding: 24px;
+    }
+    .stage { width: 620px; }
+    .compact {
+      height: 62px;
+      border-radius: 999px;
+      background: #020304;
+      display: grid;
+      grid-template-columns: 64px 1fr 110px;
+      align-items: center;
+      padding: 0 12px;
+      box-shadow: 0 18px 42px rgba(0,0,0,0.42);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .art {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #7d32e0, #ff834e 55%, #ffd18c);
+    }
+    .center {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .meta { min-width: 0; }
+    .meta h2 { margin: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .meta p { margin: 3px 0 0; font-size: 11px; color: var(--muted); }
+    .wave {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-left: auto;
+      margin-right: 6px;
+    }
+    .bar {
+      width: 3px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #8ce0ff, #ffc38a);
+      animation: pulse 1.2s ease-in-out infinite;
+      transform-origin: center;
+    }
+    .bar:nth-child(1) { height: 10px; animation-delay: 0s; }
+    .bar:nth-child(2) { height: 22px; animation-delay: .1s; }
+    .bar:nth-child(3) { height: 15px; animation-delay: .2s; }
+    .bar:nth-child(4) { height: 26px; animation-delay: .3s; }
+    .bar:nth-child(5) { height: 12px; animation-delay: .4s; }
+    .bar:nth-child(6) { height: 18px; animation-delay: .15s; }
+    .status { text-align: right; font-size: 11px; color: var(--muted); }
+    .status strong { display: block; color: var(--text); font-size: 13px; }
+    .expanded {
+      margin-top: 14px;
+      border-radius: 26px;
+      background: rgba(4,6,10,0.97);
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 22px 50px rgba(0,0,0,0.48);
+      overflow: hidden;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 16px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    .pill { padding: 6px 11px; border-radius: 999px; font-size: 12px; background: rgba(255,255,255,0.06); color: var(--muted); }
+    .body { padding: 16px; }
+    .row { display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: center; }
+    .hero-art {
+      width: 76px; height: 76px; border-radius: 18px;
+      background: linear-gradient(145deg, #7d32e0, #ff834e 55%, #ffd18c);
+      box-shadow: 0 16px 34px rgba(125,50,224,0.22);
+    }
+    .headline { font-size: 18px; margin: 0; }
+    .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .progress { margin-top: 14px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+    .progress::before { content:""; position:absolute; inset:0 auto 0 0; width: 54%; background: linear-gradient(90deg, #8ce0ff, #ffc38a); border-radius:inherit; }
+    .footer { margin-top: 12px; display:flex; justify-content:space-between; align-items:center; }
+    .controls { display:flex; gap:10px; }
+    .circle { width:34px; height:34px; border-radius:999px; display:grid; place-items:center; background: rgba(255,255,255,0.08); }
+    .circle.primary { background: rgba(255,255,255,0.16); }
+    .time { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: rgba(240,244,255,0.42); }
+    @keyframes pulse {
+      0%,100% { transform: scaleY(.7); opacity: .7; }
+      50% { transform: scaleY(1.15); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <section class="compact">
+      <div class="art"></div>
+      <div class="center">
+        <div class="meta">
+          <h2>Midnight City</h2>
+          <p>M83 · playing now</p>
+        </div>
+        <div class="wave">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </div>
+      </div>
+      <div class="status"><strong>AirPods Pro</strong>Active output</div>
+    </section>
+
+    <section class="expanded">
+      <div class="topbar">
+        <span class="pill">Waveform split island</span>
+        <span class="pill">Signature motion concept</span>
+      </div>
+      <div class="body">
+        <div class="row">
+          <div class="hero-art"></div>
+          <div>
+            <h3 class="headline">Midnight City</h3>
+            <p class="sub">M83 · Hurry Up, We’re Dreaming · Music</p>
+            <div class="progress"></div>
+            <div class="footer">
+              <div class="controls">
+                <span class="circle">◀</span>
+                <span class="circle primary">❚❚</span>
+                <span class="circle">▶</span>
+              </div>
+              <div class="time">01:42 · -01:03</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

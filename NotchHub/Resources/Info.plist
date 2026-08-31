@@ -10,6 +10,8 @@
     <string>com.notchhub.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
+    <key>CFBundleIconFile</key>
+    <string>NotchHub</string>
     <key>CFBundleName</key>
     <string>NotchHub</string>
     <key>CFBundlePackageType</key>

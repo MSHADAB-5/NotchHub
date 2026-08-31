@@ -21,13 +21,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Initialize core objects
         screenDetector = ScreenDetector()
         viewModel = NotchViewModel()
-        windowController = NotchWindowController(screenDetector: screenDetector, viewModel: viewModel)
+        settingsService = SettingsService()
+        windowController = NotchWindowController(
+            screenDetector: screenDetector,
+            viewModel: viewModel,
+            settingsService: settingsService
+        )
         menuBarController = MenuBarController(viewModel: viewModel)
 
-        // Initialize services
         nowPlayingService = NowPlayingService()
         systemActionsService = SystemActionsService()
         volumeService = VolumeService()
@@ -35,21 +38,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         batteryService = BatteryService()
         clipboardService = ClipboardService()
         timerService = TimerService()
-        settingsService = SettingsService()
         widgetRegistry = WidgetRegistry()
 
-        // Apply saved widget preferences
         let allPages = WidgetPage.allCases
         widgetRegistry.enabledPages = allPages.filter {
             settingsService.enabledWidgets.contains($0.settingsKey)
         }
 
-        // Set up menu bar with settings access
+        if let preferred = WidgetPage.from(settingsKey: settingsService.defaultWidgetKey),
+           widgetRegistry.enabledPages.contains(preferred) {
+            widgetRegistry.currentPage = preferred
+        } else if let firstEnabled = widgetRegistry.enabledPages.first {
+            widgetRegistry.currentPage = firstEnabled
+        }
+
         menuBarController.settingsService = settingsService
         menuBarController.widgetRegistry = widgetRegistry
         menuBarController.setup()
 
-        // Set up the notch panel with SwiftUI content
         windowController.setupPanel {
             NotchContainerView(
                 viewModel: self.viewModel,
@@ -61,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 batteryService: self.batteryService,
                 clipboardService: self.clipboardService,
                 timerService: self.timerService,
+                settingsService: self.settingsService,
                 widgetRegistry: self.widgetRegistry,
                 onOpenSettings: { [weak self] in
                     self?.menuBarController.showSettings()
@@ -68,9 +75,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
 
-        // Listen for Escape key to dismiss
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 { // Escape
+            if event.keyCode == 53 {
                 self?.viewModel.dismiss()
                 return nil
             }

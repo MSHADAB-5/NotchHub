@@ -8,10 +8,14 @@ cd "$SCRIPT_DIR"
 
 CONFIG="${1:-debug}"
 APP_NAME="NotchHub"
-APP_BUNDLE="build/${APP_NAME}.app"
+BUILD_ROOT="build"
+APP_BUNDLE="${BUILD_ROOT}/${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"
 MACOS="${CONTENTS}/MacOS"
 RESOURCES="${CONTENTS}/Resources"
+ICON_SOURCE_DIR="${APP_NAME}/Resources/Assets.xcassets/AppIcon.appiconset"
+GENERATED_ICONSET="${BUILD_ROOT}/${APP_NAME}.generated.iconset"
+GENERATED_ICNS="${BUILD_ROOT}/${APP_NAME}.generated.icns"
 
 echo "==> Building ${APP_NAME} (${CONFIG})..."
 swift build -c "$CONFIG" 2>&1
@@ -32,6 +36,17 @@ cp "${BUILD_DIR}/${APP_NAME}" "${MACOS}/${APP_NAME}"
 
 # Copy Info.plist
 cp "${APP_NAME}/Resources/Info.plist" "${CONTENTS}/Info.plist"
+
+# Generate app icon from source assets when available
+if [ -d "${ICON_SOURCE_DIR}" ]; then
+    rm -rf "${GENERATED_ICONSET}"
+    mkdir -p "${GENERATED_ICONSET}"
+    cp "${ICON_SOURCE_DIR}/"*.png "${GENERATED_ICONSET}/"
+    iconutil -c icns "${GENERATED_ICONSET}" -o "${GENERATED_ICNS}"
+    cp "${GENERATED_ICNS}" "${RESOURCES}/${APP_NAME}.icns"
+elif [ -f "${APP_NAME}/Resources/${APP_NAME}.icns" ]; then
+    cp "${APP_NAME}/Resources/${APP_NAME}.icns" "${RESOURCES}/${APP_NAME}.icns"
+fi
 
 # Copy helper scripts into Resources
 if [ -d "${APP_NAME}/Resources/Scripts" ]; then

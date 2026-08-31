@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dual Clock Preview Gallery</title>
+  <style>
+    :root {
+      --bg: #0c0f16;
+      --bg-2: #171926;
+      --text: #f3f5ff;
+      --muted: rgba(226, 232, 255, 0.65);
+      --line: rgba(255, 255, 255, 0.14);
+      --surface: rgba(255, 255, 255, 0.04);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 22px;
+      color: var(--text);
+      font-family: "Avenir Next", "SF Pro Display", "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(920px 480px at 10% 12%, rgba(48, 83, 98, 0.25), transparent 54%),
+        radial-gradient(820px 520px at 90% 0%, rgba(122, 80, 58, 0.2), transparent 52%),
+        linear-gradient(145deg, var(--bg), var(--bg-2));
+    }
+
+    .wrap {
+      width: min(1100px, 100%);
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(20px, 2.4vw, 28px);
+      font-weight: 650;
+      letter-spacing: 0.01em;
+    }
+
+    .sub {
+      margin: 6px 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    a {
+      color: var(--text);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 12px;
+      background: var(--surface);
+      font-size: 12px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(6, 8, 13, 0.48);
+      margin-bottom: 14px;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .card-head strong {
+      font-size: 13px;
+      letter-spacing: 0.01em;
+    }
+
+    .card-head span {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    iframe {
+      border: 0;
+      width: 100%;
+      height: 460px;
+      background: #0b0e16;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>All 3 Clock Previews</h1>
+    <p class="sub">A) Hybrid card, B) Minimal digital, C) Analog duo.</p>
+
+    <div class="links">
+      <a href="/dual-clock-layout.html" target="_blank">Open A — Hybrid</a>
+      <a href="/dual-clock-minimal.html" target="_blank">Open B — Minimal</a>
+      <a href="/dual-clock-analog.html" target="_blank">Open C — Analog</a>
+    </div>
+
+    <section class="card">
+      <div class="card-head">
+        <strong>A — Hybrid Card</strong>
+        <span>Digital + mini radial progress</span>
+      </div>
+      <iframe src="/dual-clock-layout.html" title="Hybrid Preview"></iframe>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <strong>B — Minimal Digital</strong>
+        <span>Most compact, highest readability</span>
+      </div>
+      <iframe src="/dual-clock-minimal.html" title="Minimal Preview"></iframe>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <strong>C — Analog Duo</strong>
+        <span>Most visual, Apple-like dial direction</span>
+      </div>
+      <iframe src="/dual-clock-analog.html" title="Analog Preview"></iframe>
+    </section>
+  </main>
+</body>
+</html>

@@ -109,12 +109,16 @@ final class TimerService: ObservableObject {
     /// User confirms to start the next interval.
     func confirmNext() {
         let next = pendingNextPhase
+        let shouldResetCycle = phase == .longRest && next == .work
         phase = next
         switch next {
         case .work:      totalSeconds = workMinutes * 60
         case .shortRest: totalSeconds = shortRestMinutes * 60
         case .longRest:  totalSeconds = longRestMinutes * 60
         case .idle:      stop(); return
+        }
+        if shouldResetCycle {
+            completedIntervals = 0
         }
         remainingSeconds = totalSeconds
         timerState = .running
@@ -163,9 +167,6 @@ final class TimerService: ObservableObject {
                 pendingNextPhase = .shortRest
             }
         case .shortRest, .longRest:
-            if phase == .longRest {
-                completedIntervals = 0
-            }
             pendingNextPhase = .work
         case .idle:
             return

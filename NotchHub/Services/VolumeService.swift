@@ -6,8 +6,9 @@ import Combine
 /// Monitors and controls the system output volume using CoreAudio.
 final class VolumeService: ObservableObject {
 
-    @Published private(set) var volume: Float = 0 // 0.0–1.0
+    @Published private(set) var volume: Float = 0
     @Published private(set) var isMuted: Bool = false
+    @Published private(set) var outputDeviceName: String = ""
 
     private var defaultDeviceID: AudioDeviceID = kAudioObjectUnknown
     private var listenerBlocks: [AudioObjectPropertyListenerBlock] = []
@@ -17,6 +18,7 @@ final class VolumeService: ObservableObject {
         if defaultDeviceID != kAudioObjectUnknown {
             volume = getVolume()
             isMuted = getMuteState()
+            outputDeviceName = getDeviceName()
             listenForChanges()
         }
     }
@@ -24,8 +26,6 @@ final class VolumeService: ObservableObject {
     deinit {
         removeListeners()
     }
-
-    // MARK: - Get/Set
 
     func setVolume(_ newVolume: Float) {
         guard defaultDeviceID != kAudioObjectUnknown else { return }
@@ -37,7 +37,6 @@ final class VolumeService: ObservableObject {
         )
         let size = UInt32(MemoryLayout<Float>.size)
         AudioObjectSetPropertyData(defaultDeviceID, &address, 0, nil, size, &vol)
-        // Dragging volume above zero should immediately restore audible output.
         if vol > 0.001, isMuted {
             setMute(false)
         }
@@ -48,8 +47,6 @@ final class VolumeService: ObservableObject {
         guard defaultDeviceID != kAudioObjectUnknown else { return }
         setMute(!isMuted)
     }
-
-    // MARK: - Read State
 
     private func getVolume() -> Float {
         var volume: Float = 0
@@ -87,6 +84,21 @@ final class VolumeService: ObservableObject {
         return deviceID
     }
 
+    private func getDeviceName() -> String {
+        guard defaultDeviceID != kAudioObjectUnknown else { return "" }
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioObjectPropertyName,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        var cfName: Unmanaged<CFString>?
+        let status = withUnsafeMutablePointer(to: &cfName) {
+            AudioObjectGetPropertyData(defaultDeviceID, &address, 0, nil, &size, $0)
+        }
+        return status == noErr ? ((cfName?.takeUnretainedValue() as String?) ?? "") : ""
+    }
+
     private func setMute(_ muted: Bool) {
         var muteValue: UInt32 = muted ? 1 : 0
         var address = AudioObjectPropertyAddress(
@@ -99,10 +111,7 @@ final class VolumeService: ObservableObject {
         isMuted = muted
     }
 
-    // MARK: - Listeners
-
     private func listenForChanges() {
-        // Listen for volume changes
         addListener(
             objectID: defaultDeviceID,
             selector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
@@ -111,7 +120,6 @@ final class VolumeService: ObservableObject {
             self?.volume = self?.getVolume() ?? 0
         }
 
-        // Listen for mute changes
         addListener(
             objectID: defaultDeviceID,
             selector: kAudioDevicePropertyMute,
@@ -120,7 +128,6 @@ final class VolumeService: ObservableObject {
             self?.isMuted = self?.getMuteState() ?? false
         }
 
-        // Listen for default output device changes
         addListener(
             objectID: AudioObjectID(kAudioObjectSystemObject),
             selector: kAudioHardwarePropertyDefaultOutputDevice,
@@ -129,6 +136,7 @@ final class VolumeService: ObservableObject {
             self?.defaultDeviceID = self?.getDefaultOutputDevice() ?? kAudioObjectUnknown
             self?.volume = self?.getVolume() ?? 0
             self?.isMuted = self?.getMuteState() ?? false
+            self?.outputDeviceName = self?.getDeviceName() ?? ""
         }
     }
 
@@ -147,7 +155,6 @@ final class VolumeService: ObservableObject {
     }
 
     private func removeListeners() {
-        // Listeners are cleaned up when the process exits
         listenerBlocks.removeAll()
     }
 }
