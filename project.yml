@@ -1,0 +1,50 @@
+name: NotchHub
+options:
+  bundleIdPrefix: com.notchhub
+  deploymentTarget:
+    macOS: "13.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    GENERATE_INFOPLIST_FILE: false
+
+targets:
+  NotchHub:
+    type: application
+    platform: macOS
+    sources:
+      - path: NotchHub
+        excludes:
+          - "**/*.entitlements"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.notchhub.app
+        INFOPLIST_FILE: NotchHub/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: NotchHub/NotchHub.entitlements
+        CODE_SIGN_STYLE: Automatic
+        COMBINE_HIDPI_IMAGES: true
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        ARCHS: "$(ARCHS_STANDARD)"
+        ONLY_ACTIVE_ARCH: true
+    entitlements:
+      path: NotchHub/NotchHub.entitlements
+
+  NotchHubTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: NotchHubTests
+    dependencies:
+      - target: NotchHub
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.notchhub.tests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NotchHub.app/Contents/MacOS/NotchHub"
+        BUNDLE_LOADER: "$(TEST_HOST)"
