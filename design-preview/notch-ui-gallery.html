@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NotchHub UI Options</title>
+  <style>
+    :root {
+      --bg0: #0b0f16;
+      --bg1: #171926;
+      --text: #f3f5ff;
+      --muted: rgba(226,232,255,0.66);
+      --line: rgba(255,255,255,0.14);
+      --surface: rgba(255,255,255,0.04);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 22px;
+      color: var(--text);
+      font-family: "Avenir Next", "SF Pro Display", sans-serif;
+      background:
+        radial-gradient(920px 500px at 10% 12%, rgba(48,83,98,0.25), transparent 54%),
+        radial-gradient(840px 520px at 90% 0%, rgba(122,80,58,0.2), transparent 52%),
+        linear-gradient(145deg, var(--bg0), var(--bg1));
+    }
+    .wrap { width: min(1120px, 100%); margin: 0 auto; }
+    h1 { margin: 0; font-size: clamp(22px, 2.6vw, 30px); }
+    p { color: var(--muted); }
+    .links { display:flex; flex-wrap:wrap; gap:8px; margin: 10px 0 18px; }
+    a {
+      color: var(--text); text-decoration:none; font-size:12px;
+      padding: 7px 12px; border-radius:999px; border:1px solid var(--line); background: var(--surface);
+    }
+    .card { border:1px solid var(--line); border-radius: 14px; overflow:hidden; background: rgba(6,8,13,0.48); margin-bottom: 16px; }
+    .head { display:flex; justify-content:space-between; align-items:center; gap:8px; padding: 10px 12px; border-bottom:1px solid var(--line); }
+    .head strong { font-size: 13px; }
+    .head span { font-size: 11px; color: var(--muted); }
+    iframe { width: 100%; height: 460px; border: 0; display: block; background: #0b0e16; }
+    .recos { border:1px solid var(--line); border-radius: 16px; padding: 14px 16px; background: var(--surface); margin-bottom: 16px; }
+    .recos ul { margin: 8px 0 0 18px; color: var(--muted); }
+    .recos b { color: var(--text); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>NotchHub UI Exploration</h1>
+    <p>Based on Apple Dynamic Island guidance, MediaMate/NotchNook patterns, and clipboard manager research.</p>
+
+    <div class="links">
+      <a href="/app-icon-preview.html" target="_blank">Open icon preview</a>
+      <a href="/media-tray-premium.html" target="_blank">Open media premium</a>
+      <a href="/media-tray-waveform.html" target="_blank">Open waveform split</a>
+      <a href="/clipboard-chip-tray.html" target="_blank">Open tray chips</a>
+      <a href="/media-clipboard-dual.html" target="_blank">Open media + tray dual</a>
+    </div>
+
+    <section class="recos">
+      <b>Best near-term direction</b>
+      <ul>
+        <li><b>Implement now:</b> current tray with saved/pinned clipboard items and the new app icon.</li>
+        <li><b>Best media upgrade:</b> Premium Compact Player.</li>
+        <li><b>Best tray upgrade:</b> Clipboard Chip Rail + Recent Stack.</li>
+        <li><b>Best signature concept:</b> Media + Clipboard Dual Widget.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="head"><strong>App Icon</strong><span>Dynamic Island for Mac direction</span></div>
+      <iframe src="/app-icon-preview.html" title="App Icon Preview"></iframe>
+    </section>
+
+    <section class="card">
+      <div class="head"><strong>Option A — Premium Compact Player</strong><span>Best direct upgrade to current Nook media card</span></div>
+      <iframe src="/media-tray-premium.html" title="Media Premium"></iframe>
+    </section>
+
+    <section class="card">
+      <div class="head"><strong>Option B — Waveform Split Island</strong><span>Most notch-native and animated</span></div>
+      <iframe src="/media-tray-waveform.html" title="Waveform Split"></iframe>
+    </section>
+
+    <section class="card">
+      <div class="head"><strong>Option C — Clipboard Chip Tray</strong><span>Saved chips + filtered recent stack</span></div>
+      <iframe src="/clipboard-chip-tray.html" title="Clipboard Chip Tray"></iframe>
+    </section>
+
+    <section class="card">
+      <div class="head"><strong>Option D — Media + Clipboard Dual</strong><span>Best signature utility layout</span></div>
+      <iframe src="/media-clipboard-dual.html" title="Media Clipboard Dual"></iframe>
+    </section>
+  </main>
+</body>
+</html>

@@ -11,6 +11,7 @@ struct NotchContainerView: View {
     @ObservedObject var batteryService: BatteryService
     @ObservedObject var clipboardService: ClipboardService
     @ObservedObject var timerService: TimerService
+    @ObservedObject var settingsService: SettingsService
     @ObservedObject var widgetRegistry: WidgetRegistry
     var onOpenSettings: (() -> Void)?
 
@@ -201,7 +202,8 @@ struct NotchContainerView: View {
         case .media:
             MediaWidgetView(service: nowPlayingService,
                             volumeService: volumeService,
-                            brightnessService: brightnessService)
+                            brightnessService: brightnessService,
+                            settingsService: settingsService)
         case .quickActions:
             QuickActionsWidgetView(service: systemActionsService)
         case .battery:

@@ -14,7 +14,9 @@ let package = Package(
                 "Resources/Info.plist",
                 "NotchHub.entitlements",
                 "Resources/Assets.xcassets",
-                "Resources/Scripts"
+                "Resources/Scripts",
+                "Resources/NotchHub.icns",
+                "Resources/NotchHub-icon-preview.png"
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])

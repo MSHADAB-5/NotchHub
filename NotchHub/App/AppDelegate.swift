@@ -61,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 batteryService: self.batteryService,
                 clipboardService: self.clipboardService,
                 timerService: self.timerService,
+                settingsService: self.settingsService,
                 widgetRegistry: self.widgetRegistry,
                 onOpenSettings: { [weak self] in
                     self?.menuBarController.showSettings()

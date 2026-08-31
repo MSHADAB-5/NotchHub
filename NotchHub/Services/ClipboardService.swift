@@ -4,12 +4,17 @@ import Combine
 /// Monitors the system pasteboard and maintains a clipboard history.
 final class ClipboardService: ObservableObject {
 
-    struct ClipboardItem: Identifiable, Equatable {
-        let id = UUID()
+    struct ClipboardItem: Identifiable, Equatable, Codable {
+        let id: UUID
         let text: String
         let timestamp: Date
 
-        /// Truncated preview for display.
+        init(id: UUID = UUID(), text: String, timestamp: Date) {
+            self.id = id
+            self.text = text
+            self.timestamp = timestamp
+        }
+
         var preview: String {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.count <= 80 { return trimmed }
@@ -22,14 +27,16 @@ final class ClipboardService: ObservableObject {
     }
 
     @Published private(set) var history: [ClipboardItem] = []
+    @Published private(set) var savedItems: [ClipboardItem] = []
 
     private let maxItems = 20
+    private let defaults = UserDefaults.standard
     private var pollingTimer: Timer?
     private var lastChangeCount: Int = 0
 
     init() {
         lastChangeCount = NSPasteboard.general.changeCount
-        // Check clipboard every 0.5s
+        savedItems = loadSavedItems()
         pollingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.checkClipboard()
         }
@@ -42,7 +49,6 @@ final class ClipboardService: ObservableObject {
         pollingTimer?.invalidate()
     }
 
-    /// Copy a history item back to the clipboard.
     func copyToClipboard(_ item: ClipboardItem) {
         let pb = NSPasteboard.general
         pb.clearContents()
@@ -50,17 +56,31 @@ final class ClipboardService: ObservableObject {
         lastChangeCount = pb.changeCount
     }
 
-    /// Remove a single item from history.
-    func remove(_ item: ClipboardItem) {
+    func isSaved(_ item: ClipboardItem) -> Bool {
+        savedItems.contains { $0.text == item.text }
+    }
+
+    func toggleSaved(_ item: ClipboardItem) {
+        if let index = savedItems.firstIndex(where: { $0.text == item.text }) {
+            savedItems.remove(at: index)
+        } else {
+            savedItems.insert(ClipboardItem(text: item.text, timestamp: item.timestamp), at: 0)
+        }
+        persistSavedItems()
+    }
+
+    func removeHistoryItem(_ item: ClipboardItem) {
         history.removeAll { $0.id == item.id }
     }
 
-    /// Clear all history.
+    func removeSavedItem(_ item: ClipboardItem) {
+        savedItems.removeAll { $0.id == item.id || $0.text == item.text }
+        persistSavedItems()
+    }
+
     func clearHistory() {
         history.removeAll()
     }
-
-    // MARK: - Polling
 
     private func checkClipboard() {
         let pb = NSPasteboard.general
@@ -70,15 +90,26 @@ final class ClipboardService: ObservableObject {
         guard let text = pb.string(forType: .string),
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        // Avoid duplicating the most recent entry
         if let last = history.first, last.text == text { return }
 
         let item = ClipboardItem(text: text, timestamp: Date())
         history.insert(item, at: 0)
 
-        // Trim to max
         if history.count > maxItems {
             history = Array(history.prefix(maxItems))
         }
+    }
+
+    private func persistSavedItems() {
+        guard let data = try? JSONEncoder().encode(savedItems) else { return }
+        defaults.set(data, forKey: "savedClipboardItems")
+    }
+
+    private func loadSavedItems() -> [ClipboardItem] {
+        guard let data = defaults.data(forKey: "savedClipboardItems"),
+              let items = try? JSONDecoder().decode([ClipboardItem].self, from: data) else {
+            return []
+        }
+        return items
     }
 }

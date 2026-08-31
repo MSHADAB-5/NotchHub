@@ -21,13 +21,14 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     generalSection
+                    clockSection
                     widgetsSection
                     aboutSection
                 }
                 .padding(20)
             }
         }
-        .frame(width: 420, height: 480)
+        .frame(width: 420, height: 520)
     }
 
     // MARK: - General
@@ -55,6 +56,31 @@ struct SettingsView: View {
             }
 
             Toggle("Haptic Feedback", isOn: $settings.hapticFeedback)
+        }
+    }
+
+    // MARK: - Nook Clock
+
+    @ViewBuilder
+    private var clockSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("Nook Clock")
+
+            Text("Choose the timezone for the second clock shown in the Nook tab.")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+
+            HStack {
+                Text("Reference Zone")
+                Spacer()
+                Picker("", selection: $settings.referenceClockTimeZoneIdentifier) {
+                    ForEach(clockTimeZoneOptions) { option in
+                        Text(option.label).tag(option.identifier)
+                    }
+                }
+                .frame(width: 220)
+                .pickerStyle(.menu)
+            }
         }
     }
 
@@ -125,6 +151,30 @@ struct SettingsView: View {
                 }
             }
         )
+    }
+
+    private struct ClockTimeZoneOption: Identifiable {
+        let identifier: String
+        let label: String
+        var id: String { identifier }
+    }
+
+    private var clockTimeZoneOptions: [ClockTimeZoneOption] {
+        [
+            ClockTimeZoneOption(identifier: "Europe/Paris", label: "CET/CEST - Paris"),
+            ClockTimeZoneOption(identifier: "Europe/Berlin", label: "CET/CEST - Berlin"),
+            ClockTimeZoneOption(identifier: "Europe/Madrid", label: "CET/CEST - Madrid"),
+            ClockTimeZoneOption(identifier: "Europe/Rome", label: "CET/CEST - Rome"),
+            ClockTimeZoneOption(identifier: "Europe/Zurich", label: "CET/CEST - Zurich"),
+            ClockTimeZoneOption(identifier: "Europe/London", label: "UK - London"),
+            ClockTimeZoneOption(identifier: "UTC", label: "UTC"),
+            ClockTimeZoneOption(identifier: "America/New_York", label: "US Eastern - New York"),
+            ClockTimeZoneOption(identifier: "America/Los_Angeles", label: "US Pacific - Los Angeles"),
+            ClockTimeZoneOption(identifier: "Asia/Dubai", label: "Gulf - Dubai"),
+            ClockTimeZoneOption(identifier: "Asia/Kolkata", label: "India - Kolkata"),
+            ClockTimeZoneOption(identifier: "Asia/Tokyo", label: "Japan - Tokyo"),
+            ClockTimeZoneOption(identifier: "Australia/Sydney", label: "Australia - Sydney")
+        ]
     }
 }
 

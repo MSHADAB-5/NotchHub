@@ -27,6 +27,10 @@ final class SettingsService: ObservableObject {
         didSet { save() }
     }
 
+    @Published var referenceClockTimeZoneIdentifier: String {
+        didSet { save() }
+    }
+
     private let defaults = UserDefaults.standard
 
     private enum Keys {
@@ -35,6 +39,7 @@ final class SettingsService: ObservableObject {
         static let expandOnHover = "expandOnHover"
         static let collapseDelay = "collapseDelay"
         static let hapticFeedback = "hapticFeedback"
+        static let referenceClockTimeZoneIdentifier = "referenceClockTimeZoneIdentifier"
     }
 
     init() {
@@ -42,6 +47,8 @@ final class SettingsService: ObservableObject {
         expandOnHover = defaults.object(forKey: Keys.expandOnHover) as? Bool ?? true
         collapseDelay = defaults.object(forKey: Keys.collapseDelay) as? Double ?? 0.3
         hapticFeedback = defaults.object(forKey: Keys.hapticFeedback) as? Bool ?? true
+        referenceClockTimeZoneIdentifier =
+            defaults.string(forKey: Keys.referenceClockTimeZoneIdentifier) ?? "Europe/Paris"
 
         if let saved = defaults.stringArray(forKey: Keys.enabledWidgets) {
             enabledWidgets = Set(saved)
@@ -56,6 +63,7 @@ final class SettingsService: ObservableObject {
         defaults.set(expandOnHover, forKey: Keys.expandOnHover)
         defaults.set(collapseDelay, forKey: Keys.collapseDelay)
         defaults.set(hapticFeedback, forKey: Keys.hapticFeedback)
+        defaults.set(referenceClockTimeZoneIdentifier, forKey: Keys.referenceClockTimeZoneIdentifier)
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {

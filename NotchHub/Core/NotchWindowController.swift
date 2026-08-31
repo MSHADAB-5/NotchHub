@@ -18,7 +18,7 @@ final class NotchWindowController: NSObject, ObservableObject {
 
     // Expanded panel dimensions
     private let expandedWidth: CGFloat = 620
-    private let expandedHeight: CGFloat = 324
+    private let expandedHeight: CGFloat = 376
 
     init(screenDetector: ScreenDetector, viewModel: NotchViewModel) {
         self.screenDetector = screenDetector

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clipboard Chip Tray</title>
+  <style>
+    :root {
+      --text: #f4f6ff;
+      --muted: rgba(226,233,255,0.6);
+      --line: rgba(255,255,255,0.08);
+      --card: rgba(255,255,255,0.05);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: linear-gradient(145deg, #0a0e15, #17131d);
+      font-family: "Avenir Next", "SF Pro Display", sans-serif;
+      color: var(--text);
+    }
+    .shell {
+      width: 620px;
+      border-radius: 0 0 34px 34px;
+      background: rgba(4,6,10,0.97);
+      border: 1px solid rgba(255,255,255,0.05);
+      box-shadow: 0 24px 56px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    .topbar {
+      display:flex; justify-content:space-between; align-items:center;
+      padding: 12px 16px 10px; border-bottom:1px solid var(--line);
+    }
+    .tab { padding: 6px 11px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 12px; }
+    .ghost { color: var(--muted); font-size: 12px; }
+    .body { padding: 14px 16px 16px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .header h2 { margin:0; font-size:15px; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom: 12px; }
+    .chip {
+      height: 24px; padding: 0 10px; border-radius: 999px; display:inline-flex; align-items:center;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--line); font-size: 11px;
+    }
+    .chip.saved { background: rgba(255, 205, 105, 0.12); color: #ffd873; }
+    .filters { display:flex; gap: 8px; margin-bottom: 12px; }
+    .filter { padding: 5px 10px; border-radius: 999px; font-size: 11px; color: var(--muted); background: rgba(255,255,255,0.04); }
+    .filter.active { color: var(--text); background: rgba(255,255,255,0.1); }
+    .list { display:grid; gap: 6px; }
+    .row {
+      display:grid; grid-template-columns: 18px 1fr auto auto; gap:10px; align-items:center;
+      padding: 8px 10px; border-radius: 10px; background: var(--card); border: 1px solid rgba(255,255,255,0.03);
+    }
+    .icon { color: rgba(255,255,255,0.34); font-size: 11px; text-align:center; }
+    .txt { font-size: 12px; color: rgba(244,246,255,0.78); white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
+    .meta { font-size: 11px; color: rgba(255,255,255,0.26); }
+    .star { color: #ffd873; font-size: 12px; }
+    .more { margin-top: 10px; text-align:center; font-size: 11px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <span class="tab">Tray</span>
+      <span class="ghost">Pinned chip rail + recent stack</span>
+    </section>
+    <section class="body">
+      <div class="header">
+        <h2>Saved snippets</h2>
+        <span class="ghost">Clear recent</span>
+      </div>
+      <div class="chips">
+        <span class="chip saved">Standup URL</span>
+        <span class="chip saved">SSH prod</span>
+        <span class="chip saved">Brand HEX</span>
+        <span class="chip saved">Invoice note</span>
+      </div>
+      <div class="filters">
+        <span class="filter active">All</span>
+        <span class="filter">Pinned</span>
+        <span class="filter">Text</span>
+        <span class="filter">Links</span>
+        <span class="filter">Code</span>
+      </div>
+      <div class="list">
+        <div class="row"><span class="icon">≡</span><span class="txt">https://linear.app/company/issue/ABC-123</span><span class="meta">now</span><span class="star">☆</span></div>
+        <div class="row"><span class="icon">&lt;/&gt;</span><span class="txt">npm run build && open build/NotchHub.app</span><span class="meta">3m</span><span class="star">★</span></div>
+        <div class="row"><span class="icon">🔗</span><span class="txt">Meeting notes — Q4 roadmap draft with assets</span><span class="meta">12m</span><span class="star">☆</span></div>
+      </div>
+      <div class="more">+12 more recent items</div>
+    </section>
+  </main>
+</body>
+</html>

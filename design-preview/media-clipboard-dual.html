@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Media Clipboard Dual</title>
+  <style>
+    :root {
+      --text: #f4f6ff;
+      --muted: rgba(226,233,255,0.58);
+      --line: rgba(255,255,255,0.08);
+      --card: rgba(255,255,255,0.05);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: linear-gradient(145deg, #0a0e15, #17131d);
+      font-family: "Avenir Next", "SF Pro Display", sans-serif;
+      color: var(--text);
+    }
+    .shell {
+      width: 620px;
+      border-radius: 0 0 34px 34px;
+      background: rgba(4,6,10,0.97);
+      border: 1px solid rgba(255,255,255,0.05);
+      overflow: hidden;
+      box-shadow: 0 24px 56px rgba(0,0,0,0.5);
+    }
+    .topbar {
+      display:flex; justify-content:space-between; align-items:center;
+      padding: 12px 16px 10px; border-bottom:1px solid var(--line);
+    }
+    .tabset { display:flex; gap:8px; }
+    .pill { padding: 6px 11px; border-radius: 999px; font-size: 12px; background: rgba(255,255,255,0.06); color: var(--muted); }
+    .pill.active { background: rgba(255,255,255,0.12); color: var(--text); }
+    .body { padding: 14px 16px 16px; }
+    .grid { display:grid; grid-template-columns: 58% 42%; gap: 8px; }
+    .card {
+      border-radius: 16px;
+      background: linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+      border: 1px solid var(--line);
+      padding: 12px;
+    }
+    .media-top { display:grid; grid-template-columns: 50px 1fr; gap: 12px; }
+    .art { width: 50px; height: 50px; border-radius: 12px; background: linear-gradient(145deg, #7d32e0, #ff834e 55%, #ffd18c); }
+    .media-title { margin:0; font-size: 15px; }
+    .media-sub { margin:4px 0 0; font-size: 12px; color: var(--muted); }
+    .progress { margin-top: 10px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow:hidden; position:relative; }
+    .progress::before { content:""; position:absolute; inset:0 auto 0 0; width: 58%; background: linear-gradient(90deg, #8ce0ff, #ffc38a); border-radius:inherit; }
+    .media-foot { margin-top: 10px; display:flex; justify-content:space-between; align-items:center; }
+    .controls { display:flex; gap:8px; }
+    .dot { width: 28px; height: 28px; border-radius: 999px; display:grid; place-items:center; background: rgba(255,255,255,0.08); font-size: 12px; }
+    .mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: rgba(255,255,255,0.4); }
+    .tray-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .tray-title { margin:0; font-size: 14px; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+    .chip { padding: 4px 8px; font-size:11px; border-radius:999px; background: rgba(255,205,105,0.12); color:#ffd873; border: 1px solid rgba(255,205,105,0.14); }
+    .clip { padding: 8px 9px; border-radius: 10px; background: var(--card); margin-top: 6px; font-size: 12px; color: rgba(244,246,255,0.74); }
+    .clip small { display:block; margin-top:3px; color: rgba(255,255,255,0.26); font-size:10px; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div class="tabset"><span class="pill active">Nook</span><span class="pill">Tray</span></div>
+      <span class="pill">Compact dual widget</span>
+    </section>
+    <section class="body">
+      <div class="grid">
+        <article class="card">
+          <div class="media-top">
+            <div class="art"></div>
+            <div>
+              <h2 class="media-title">Midnight City</h2>
+              <p class="media-sub">M83 · Hurry Up, We're Dreaming</p>
+            </div>
+          </div>
+          <div class="progress"></div>
+          <div class="media-foot">
+            <div class="controls"><span class="dot">◀</span><span class="dot">❚❚</span><span class="dot">▶</span></div>
+            <span class="mono">1:42 · -1:03</span>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="tray-head">
+            <h3 class="tray-title">Pinned</h3>
+            <span style="font-size:11px;color:var(--muted);">3 saved</span>
+          </div>
+          <div class="chips">
+            <span class="chip">Standup URL</span>
+            <span class="chip">SSH prod</span>
+            <span class="chip">Brand HEX</span>
+          </div>
+          <div class="clip">npm run build && open build/NotchHub.app<small>Recent · 2m ago</small></div>
+          <div class="clip">https://linear.app/company/issue/ABC-123<small>Recent · now</small></div>
+        </article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
