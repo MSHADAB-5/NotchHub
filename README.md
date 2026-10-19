@@ -41,7 +41,7 @@ Built in Swift and SwiftUI, NotchHub runs as a menu-bar-only agent app (`LSUIEle
 - **Pin mode** — keep the panel expanded so it doesn't collapse on mouse exit.
 - **Launch at Login** via `SMAppService`.
 - **Three panel size presets** — Compact, Standard, Roomy.
-- **Configurable dual clocks** — local time + a reference timezone of your choice.
+- **Configurable dual clocks** — independently choose a location for either clock, or follow your Mac's timezone.
 - **Scrubbable media progress bar** — drag to seek within the current track.
 - **Pomodoro cycle-end prompt** — after a full cycle (focus + long break), the timer asks whether to repeat the session or end it.
 - **Menu bar item** with Show / Settings / About / Quit.
@@ -161,7 +161,7 @@ You can also open the `Package.swift` directly in Xcode and run from there, but 
 swift test
 ```
 
-Tests live in `NotchHubTests/` and cover the `NotchViewModel` state machine (collapsed → hovering → expanded → pinned, peek auto-collapse, dismiss, click-outside).
+Tests live in `NotchHubTests/` and cover the `NotchViewModel` state machine (collapsed → hovering → expanded → pinned, peek auto-collapse, dismiss, click-outside), clock preferences and timezone handling, and clipboard aliases, persistence, search, and copying. Clipboard and settings tests use isolated preferences and private pasteboards.
 
 ---
 
@@ -245,7 +245,7 @@ expanded ──showPeek──▶ peeking(id) ──timer──▶ collapsed
 - **Scrubbable progress bar** — drag to seek
 - Status chips (Playing / Paused, output device or album)
 - Compact volume + brightness sliders (drag to adjust, tap icon to mute)
-- Dual clock cards (local + reference timezone) with place names and `UTC +x` labels
+- Dual clock cards with independently configurable locations, place names, and daylight-saving-aware `UTC +x` labels
 
 Media controls are powered by a helper Swift script (`nowplaying.swift`) that calls the private `MediaRemote` framework. Because the app is ad-hoc signed, it can't call MediaRemote directly — the helper is run via `/usr/bin/swift` (which is Apple-signed).
 
@@ -277,12 +277,18 @@ Media controls are powered by a helper Swift script (`nowplaying.swift`) that ca
 
 `ClipboardWidgetView.swift`
 
-- Search field with live filtering
+- Search field with live filtering by alias, original content, type, or source app
 - Kind filter chips: All / Text / Links / Code
-- **Saved items** — horizontal chip row, persisted across launches via `UserDefaults`
-- **Recent items** — vertical list, tap to re-copy, star to save
+- **Saved items** — independently scrolling column with optional names, rename controls, and no eight-item display cap; persisted across launches via `UserDefaults`
+- **Recent items** — scrolling list, click to re-copy with confirmation, star to save and immediately add an optional name
+- Aliases such as `PC_pass` change only the displayed label; copying always returns the exact original content
+- Press Enter or Save to apply a name, or Escape/Cancel to leave its previous name unchanged; a newly starred item stays saved even if naming is canceled
+- Names may be up to 64 characters; clearing a name restores the content preview
+- Hover-collapse pauses during naming, and Clear recent never removes saved items
 - Auto-detects content kind (text / link / code) from the copied string
 - Max 20 recent items
+
+Saved clipboard content remains in the existing local UserDefaults storage. Aliases are labels, not encryption or a password vault.
 
 ### Timer
 
@@ -344,9 +350,13 @@ Open settings from the menu bar item → **Settings...** (or `Cmd+,` when the me
 - **Default Tab** — which widget page shows first (Nook / Actions / Power / Tray / Timer)
 - **Panel Size** — Compact (580×352) / Standard (620×376) / Roomy (660×404)
 
-### Nook Clock
+### Nook Clocks
 
-- **Reference Zone** — timezone for the second clock card (Paris, Berlin, London, New York, Dubai, Kolkata, Tokyo, Sydney, UTC, and more)
+- **Clock 1 / Clock 2** — independently choose each clock's location with a searchable city/timezone picker
+- Search the macOS timezone catalog by city or identifier, including UTC
+- **Follow Mac** — keep either clock in sync with the Mac's current timezone
+- Existing installations keep the first clock following the Mac and retain their saved second-clock selection (Paris by default)
+- Changes apply immediately, persist across launches, and account for daylight saving and fractional-hour UTC offsets
 
 ### Widgets
 

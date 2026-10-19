@@ -94,23 +94,18 @@ struct SettingsView: View {
     @ViewBuilder
     private var clockSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Nook Clock")
+            sectionHeader("Nook Clocks")
 
-            Text("Choose the timezone for the second clock shown in the Nook tab.")
+            Text("Choose a location for each clock, or let either one follow your Mac.")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
 
-            HStack {
-                Text("Reference Zone")
-                Spacer()
-                Picker("", selection: $settings.referenceClockTimeZoneIdentifier) {
-                    ForEach(clockTimeZoneOptions) { option in
-                        Text(option.label).tag(option.identifier)
-                    }
-                }
-                .frame(width: 220)
-                .pickerStyle(.menu)
-            }
+            ClockLocationPicker(title: "Clock 1", selection: $settings.primaryClockTimeZoneIdentifier)
+            ClockLocationPicker(
+                title: "Clock 2",
+                selection: $settings.referenceClockTimeZoneIdentifier,
+                fallbackIdentifier: ClockTimeZone.defaultReferenceIdentifier
+            )
         }
     }
 
@@ -212,28 +207,126 @@ struct SettingsView: View {
         case .timer: return "Timer"
         }
     }
+}
 
-    private struct ClockTimeZoneOption: Identifiable {
-        let identifier: String
-        let label: String
-        var id: String { identifier }
+private struct ClockLocationPicker: View {
+    let title: String
+    @Binding var selection: String
+    var fallbackIdentifier = ClockTimeZone.followMacIdentifier
+    @State private var isChoosing = false
+    @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            let zone = ClockTimeZone.resolve(selection, fallback: fallbackIdentifier)
+            Button(action: { isChoosing.toggle() }) {
+                HStack(spacing: 12) {
+                    Text(title)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 48, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(selection == ClockTimeZone.followMacIdentifier ? "Follow Mac" : ClockTimeZone.placeName(for: zone))
+                            .font(.system(size: 13, weight: .medium))
+                        Text("\(zone.identifier) · \(ClockTimeZone.utcOffsetString(for: zone, at: context.date))")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+                    .lineLimit(1)
+
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(Color.primary.opacity(0.045))
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(title) location")
+            .help("Choose a location for \(title)")
+        }
+        .popover(isPresented: $isChoosing, arrowEdge: .trailing) {
+            locationChooser
+        }
+        .onChange(of: isChoosing) { choosing in
+            if !choosing { searchText = "" }
+        }
     }
 
-    private var clockTimeZoneOptions: [ClockTimeZoneOption] {
-        [
-            ClockTimeZoneOption(identifier: "Europe/Paris", label: "CET/CEST - Paris"),
-            ClockTimeZoneOption(identifier: "Europe/Berlin", label: "CET/CEST - Berlin"),
-            ClockTimeZoneOption(identifier: "Europe/Madrid", label: "CET/CEST - Madrid"),
-            ClockTimeZoneOption(identifier: "Europe/Rome", label: "CET/CEST - Rome"),
-            ClockTimeZoneOption(identifier: "Europe/Zurich", label: "CET/CEST - Zurich"),
-            ClockTimeZoneOption(identifier: "Europe/London", label: "UK - London"),
-            ClockTimeZoneOption(identifier: "UTC", label: "UTC"),
-            ClockTimeZoneOption(identifier: "America/New_York", label: "US Eastern - New York"),
-            ClockTimeZoneOption(identifier: "America/Los_Angeles", label: "US Pacific - Los Angeles"),
-            ClockTimeZoneOption(identifier: "Asia/Dubai", label: "Gulf - Dubai"),
-            ClockTimeZoneOption(identifier: "Asia/Kolkata", label: "India - Kolkata"),
-            ClockTimeZoneOption(identifier: "Asia/Tokyo", label: "Japan - Tokyo"),
-            ClockTimeZoneOption(identifier: "Australia/Sydney", label: "Australia - Sydney")
-        ]
+    private var locationChooser: some View {
+        let options = ClockTimeZone.options(matching: searchText)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("\(title) Location")
+                .font(.system(size: 13, weight: .semibold))
+            TextField("Search cities or time zones", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .focused($isSearchFocused)
+                .onAppear { isSearchFocused = true }
+
+            locationRow(
+                title: "Follow Mac",
+                subtitle: ClockTimeZone.placeName(for: .autoupdatingCurrent),
+                identifier: ClockTimeZone.followMacIdentifier
+            )
+            Divider()
+
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(options) { option in
+                        locationRow(title: option.label, subtitle: option.identifier, identifier: option.identifier)
+                    }
+                    if options.isEmpty {
+                        Text("No matching locations")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                    }
+                }
+            }
+            .frame(height: 240)
+        }
+        .padding(14)
+        .frame(width: 320)
+    }
+
+    private func locationRow(title: String, subtitle: String, identifier: String) -> some View {
+        Button {
+            selection = identifier
+            isChoosing = false
+        } label: {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 12, weight: .medium))
+                    Text(subtitle)
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                }
+                .lineLimit(1)
+                Spacer(minLength: 4)
+                if selection == identifier {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                }
+            }
+            .padding(7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.accentColor.opacity(selection == identifier ? 0.1 : 0.001))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

@@ -241,24 +241,24 @@ struct MediaWidgetView: View {
     private var clocksRow: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let now = context.date
-            let localZone = TimeZone.current
-            let targetZone = configuredReferenceTimeZone
-            let localPlace = placeName(for: localZone)
-            let targetPlace = placeName(for: targetZone)
+            let localZone = settingsService.primaryClockTimeZone
+            let targetZone = settingsService.referenceClockTimeZone
+            let localPlace = ClockTimeZone.placeName(for: localZone)
+            let targetPlace = ClockTimeZone.placeName(for: targetZone)
 
             HStack(spacing: 8) {
                 compactClockCard(
                     title: localPlace,
                     snapshot: clockSnapshot(for: now, timeZone: localZone),
                     accent: Color(red: 0.61, green: 0.91, blue: 0.76),
-                    utcOffset: compactUTCOffsetString(for: localZone, at: now)
+                    utcOffset: ClockTimeZone.utcOffsetString(for: localZone, at: now)
                 )
 
                 compactClockCard(
                     title: targetPlace,
                     snapshot: clockSnapshot(for: now, timeZone: targetZone),
                     accent: Color(red: 1.0, green: 0.79, blue: 0.55),
-                    utcOffset: compactUTCOffsetString(for: targetZone, at: now)
+                    utcOffset: ClockTimeZone.utcOffsetString(for: targetZone, at: now)
                 )
             }
         }
@@ -320,12 +320,6 @@ struct MediaWidgetView: View {
                         .stroke(.white.opacity(0.06), lineWidth: 0.5)
                 )
         )
-    }
-
-    private var configuredReferenceTimeZone: TimeZone {
-        TimeZone(identifier: settingsService.referenceClockTimeZoneIdentifier)
-            ?? TimeZone(identifier: "Europe/Paris")
-            ?? .current
     }
 
     private struct ClockSnapshot {
@@ -440,35 +434,6 @@ struct MediaWidgetView: View {
         let hours = absoluteMinutes / 60
         let minutes = absoluteMinutes % 60
         return String(format: "%@%02d:%02d", sign, hours, minutes)
-    }
-
-    private func compactUTCOffsetString(for timeZone: TimeZone, at date: Date) -> String {
-        let totalMinutes = timeZone.secondsFromGMT(for: date) / 60
-        if totalMinutes == 0 { return "UTC" }
-
-        let sign = totalMinutes > 0 ? "+" : "-"
-        let absoluteMinutes = abs(totalMinutes)
-        let hours = absoluteMinutes / 60
-        let minutes = absoluteMinutes % 60
-
-        if minutes == 0 {
-            return "UTC \(sign)\(hours)"
-        }
-        return "UTC \(sign)\(hours):\(String(format: "%02d", minutes))"
-    }
-
-    private func placeName(for timeZone: TimeZone) -> String {
-        let identifier = timeZone.identifier
-        if let city = identifier.split(separator: "/").last {
-            let formatted = city.replacingOccurrences(of: "_", with: " ")
-            if !formatted.isEmpty {
-                return formatted
-            }
-        }
-        if let localized = timeZone.localizedName(for: .shortStandard, locale: .current), !localized.isEmpty {
-            return localized
-        }
-        return identifier
     }
 
     private func shortZoneLabel(for timeZone: TimeZone, at date: Date) -> String {

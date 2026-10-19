@@ -23,6 +23,7 @@ final class NotchViewModel: ObservableObject {
 
     @Published private(set) var state: NotchState = .collapsed
     @Published private(set) var peekContent: PeekContent?
+    @Published private(set) var isEditingClipboardAlias = false
     @Published var expandedWidth: CGFloat = 420
     @Published var expandedHeight: CGFloat = 200
 
@@ -77,6 +78,7 @@ final class NotchViewModel: ObservableObject {
 
     func mouseExited() {
         cancelHoverTimer()
+        guard !isEditingClipboardAlias else { return }
 
         switch state {
         case .hovering:
@@ -85,7 +87,7 @@ final class NotchViewModel: ObservableObject {
             }
         case .expanded:
             let work = DispatchWorkItem { [weak self] in
-                guard let self, self.state == .expanded else { return }
+                guard let self, self.state == .expanded, !self.isEditingClipboardAlias else { return }
                 withAnimation(self.collapseAnimation) {
                     self.state = .collapsed
                 }
@@ -102,6 +104,11 @@ final class NotchViewModel: ObservableObject {
         }
     }
 
+    func setClipboardAliasEditing(_ editing: Bool) {
+        isEditingClipboardAlias = editing && (state == .expanded || state == .pinned)
+        if isEditingClipboardAlias { cancelCollapseTimer() }
+    }
+
     func togglePin() {
         switch state {
         case .expanded:
@@ -109,6 +116,7 @@ final class NotchViewModel: ObservableObject {
                 state = .pinned
             }
         case .pinned:
+            isEditingClipboardAlias = false
             withAnimation(collapseAnimation) {
                 clearPeek()
                 state = .collapsed
@@ -121,6 +129,7 @@ final class NotchViewModel: ObservableObject {
     func clickedOutside() {
         switch state {
         case .expanded, .pinned, .peeking:
+            isEditingClipboardAlias = false
             withAnimation(collapseAnimation) {
                 clearPeek()
                 state = .collapsed
@@ -134,6 +143,7 @@ final class NotchViewModel: ObservableObject {
         cancelHoverTimer()
         cancelCollapseTimer()
         cancelPeekTimer()
+        isEditingClipboardAlias = false
         withAnimation(collapseAnimation) {
             clearPeek()
             state = .collapsed
@@ -149,6 +159,7 @@ final class NotchViewModel: ObservableObject {
         duration: TimeInterval = 2.5
     ) {
         cancelPeekTimer()
+        isEditingClipboardAlias = false
         peekContent = PeekContent(id: id, systemImage: systemImage, title: title, subtitle: subtitle, tint: tint)
         withAnimation(expandAnimation) {
             state = .peeking(id: id)

@@ -6,7 +6,7 @@ struct TimerWidgetView: View {
     @ObservedObject var service: TimerService
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             header
 
             if service.phase == .idle {
@@ -17,7 +17,9 @@ struct TimerWidgetView: View {
                 activeView
             }
         }
-        .glassCard(cornerRadius: 16, padding: 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
     }
 
     // MARK: - Header
@@ -26,7 +28,7 @@ struct TimerWidgetView: View {
         HStack(spacing: 8) {
             Label("TIMER", systemImage: "timer")
                 .font(.system(size: 11.5, weight: .semibold))
-                .foregroundColor(.white.opacity(0.72))
+                .foregroundColor(.white.opacity(0.66))
 
             Spacer(minLength: 8)
 
@@ -48,20 +50,16 @@ struct TimerWidgetView: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 22)
-        .background(
-            Capsule(style: .continuous)
-                .fill(status.tint.opacity(0.11))
-        )
         .overlay(
-            Capsule(style: .continuous)
-                .stroke(status.tint.opacity(0.14), lineWidth: 0.5)
+            Capsule(style: .circular)
+                .strokeBorder(status.tint.opacity(0.24), lineWidth: 0.5)
         )
     }
 
     private var headerStatus: (title: String, tint: Color) {
         switch service.timerState {
         case .idle:
-            return ("SETUP", .white.opacity(0.42))
+            return ("SETUP", .white.opacity(0.46))
         case .running:
             return (service.phase.rawValue.uppercased(), phaseColor)
         case .paused:
@@ -76,7 +74,7 @@ struct TimerWidgetView: View {
     @ViewBuilder
     private var idleView: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 11) {
+            HStack(spacing: 12) {
                 timerDial(
                     progress: 0,
                     time: formattedMinutes(service.workMinutes),
@@ -98,8 +96,7 @@ struct TimerWidgetView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(8)
-            .background(innerSurface)
+            .padding(.vertical, 2)
 
             VStack(spacing: 6) {
                 HStack(spacing: 6) {
@@ -132,7 +129,7 @@ struct TimerWidgetView: View {
                         value: $service.intervalsBeforeLong,
                         options: [2, 3, 4, 6],
                         suffix: "x",
-                        accent: .white.opacity(0.76)
+                        accent: .white.opacity(0.82)
                     )
                 }
             }
@@ -140,28 +137,22 @@ struct TimerWidgetView: View {
             Button(action: { service.start() }) {
                 HStack(spacing: 7) {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 11.5, weight: .bold))
                     Text("Start Focus")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 13.5, weight: .semibold))
                 }
-                .foregroundColor(.black)
+                .foregroundColor(focusColor)
                 .frame(maxWidth: .infinity)
-                .frame(height: 38)
-                .background(
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    focusColor,
-                                    Color(red: 0.55, green: 0.88, blue: 1.0)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
+                .frame(height: 36)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(
+                FlatNotchButtonStyle(
+                    shape: .rounded(11),
+                    strokeColor: focusColor.opacity(0.38),
+                    strokeWidth: 0.75,
+                    hoverFillColor: focusColor.opacity(0.06)
+                )
+            )
         }
     }
 
@@ -177,10 +168,10 @@ struct TimerWidgetView: View {
             Text(title.uppercased())
                 .font(.system(size: 8, weight: .semibold))
                 .tracking(0.6)
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundColor(.white.opacity(0.42))
 
             HStack(spacing: 5) {
-                settingStepperButton(symbol: "minus") {
+                settingStepperButton(symbol: "minus", label: "Decrease \(title)") {
                     value.wrappedValue = adjacentOption(
                         current: value.wrappedValue,
                         options: options,
@@ -193,7 +184,7 @@ struct TimerWidgetView: View {
                     .foregroundColor(accent)
                     .frame(maxWidth: .infinity)
 
-                settingStepperButton(symbol: "plus") {
+                settingStepperButton(symbol: "plus", label: "Increase \(title)") {
                     value.wrappedValue = adjacentOption(
                         current: value.wrappedValue,
                         options: options,
@@ -205,30 +196,36 @@ struct TimerWidgetView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 8)
         .padding(.vertical, 7)
-        .background(innerSurface)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(.white.opacity(0.09), lineWidth: 0.5)
+        )
     }
 
     @ViewBuilder
-    private func settingStepperButton(symbol: String, action: @escaping () -> Void) -> some View {
+    private func settingStepperButton(symbol: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 9, weight: .bold))
-                .foregroundColor(.white.opacity(0.58))
+                .foregroundColor(.white.opacity(0.62))
                 .frame(width: 20, height: 20)
-                .background(
-                    Circle()
-                        .fill(.white.opacity(0.055))
-                )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            FlatNotchButtonStyle(
+                shape: .circle,
+                strokeColor: .white.opacity(0.14),
+                strokeWidth: 0.5
+            )
+        )
+        .accessibilityLabel(label)
     }
 
     // MARK: - Active View
 
     @ViewBuilder
     private var activeView: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 12) {
+        VStack(spacing: 12) {
+            HStack(spacing: 14) {
                 timerDial(
                     progress: service.progress,
                     time: service.displayTime,
@@ -237,7 +234,7 @@ struct TimerWidgetView: View {
                     accent: phaseColor
                 )
 
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(service.phase.rawValue)
                             .font(.system(size: 15, weight: .semibold))
@@ -251,18 +248,30 @@ struct TimerWidgetView: View {
                     HStack(spacing: 8) {
                         primaryControlButton(
                             symbol: service.isRunning ? "pause.fill" : "play.fill",
+                            label: service.isRunning ? "Pause timer" : "Resume timer",
                             tint: phaseColor,
                             action: { service.togglePause() }
                         )
 
-                        secondaryControlButton(symbol: "forward.fill", action: { service.skip() })
-                        secondaryControlButton(symbol: "stop.fill", action: { service.stop() })
+                        secondaryControlButton(
+                            symbol: "forward.fill",
+                            label: "Skip interval",
+                            action: { service.skip() }
+                        )
+                        secondaryControlButton(
+                            symbol: "stop.fill",
+                            label: "Stop timer",
+                            action: { service.stop() }
+                        )
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(8)
-            .background(innerSurface)
+            .padding(.vertical, 4)
+
+            Rectangle()
+                .fill(.white.opacity(0.08))
+                .frame(height: 0.5)
 
             HStack(spacing: 8) {
                 sessionDots
@@ -271,7 +280,7 @@ struct TimerWidgetView: View {
 
                 Text(sessionSummary)
                     .font(.system(size: 10.5, weight: .medium))
-                    .foregroundColor(.white.opacity(0.42))
+                    .foregroundColor(.white.opacity(0.44))
                     .lineLimit(1)
             }
             .padding(.horizontal, 2)
@@ -288,19 +297,12 @@ struct TimerWidgetView: View {
     ) -> some View {
         ZStack {
             Circle()
-                .fill(accent.opacity(0.045))
-
-            Circle()
-                .stroke(.white.opacity(0.07), lineWidth: lineWidth)
+                .stroke(.white.opacity(0.1), lineWidth: lineWidth)
 
             Circle()
                 .trim(from: 0, to: CGFloat(max(0, min(progress, 1))))
                 .stroke(
-                    LinearGradient(
-                        colors: [accent, accent.opacity(0.42)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
+                    accent,
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
@@ -314,39 +316,57 @@ struct TimerWidgetView: View {
                 if size > 80 {
                     Text("\(Int(progress * 100))%")
                         .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.34))
+                        .foregroundColor(.white.opacity(0.38))
                 }
             }
         }
         .frame(width: size, height: size)
-        .shadow(color: accent.opacity(service.isRunning ? 0.14 : 0.06), radius: 10)
     }
 
     @ViewBuilder
-    private func primaryControlButton(symbol: String, tint: Color, action: @escaping () -> Void) -> some View {
+    private func primaryControlButton(
+        symbol: String,
+        label: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(.black)
-                .frame(width: 38, height: 38)
-                .background(Circle().fill(tint))
+                .font(.system(size: 13.5, weight: .bold))
+                .foregroundColor(tint)
+                .frame(width: 36, height: 36)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            FlatNotchButtonStyle(
+                shape: .circle,
+                strokeColor: tint.opacity(0.42),
+                strokeWidth: 0.75,
+                hoverFillColor: tint.opacity(0.07)
+            )
+        )
+        .accessibilityLabel(label)
     }
 
     @ViewBuilder
-    private func secondaryControlButton(symbol: String, action: @escaping () -> Void) -> some View {
+    private func secondaryControlButton(
+        symbol: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 11.5, weight: .semibold))
-                .foregroundColor(.white.opacity(0.56))
+                .foregroundColor(.white.opacity(0.62))
                 .frame(width: 32, height: 32)
-                .background(
-                    Circle()
-                        .fill(.white.opacity(0.055))
-                )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            FlatNotchButtonStyle(
+                shape: .circle,
+                strokeColor: .white.opacity(0.14),
+                strokeWidth: 0.5
+            )
+        )
+        .accessibilityLabel(label)
     }
 
     // MARK: - Confirm View
@@ -356,16 +376,16 @@ struct TimerWidgetView: View {
         let nextColor = colorForPhase(service.pendingNextPhase)
         let isCycleComplete = service.phase == .longRest && service.pendingNextPhase == .work
 
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(phaseColor.opacity(0.13))
+                        .strokeBorder(phaseColor.opacity(0.36), lineWidth: 0.75)
                     Image(systemName: isCycleComplete ? "checkmark.circle" : "checkmark")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundColor(phaseColor)
                 }
-                .frame(width: 36, height: 36)
+                .frame(width: 34, height: 34)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(isCycleComplete ? "Pomodoro cycle complete" : "\(service.phase.rawValue) complete")
@@ -383,8 +403,11 @@ struct TimerWidgetView: View {
                 Spacer(minLength: 8)
                 sessionDots
             }
-            .padding(8)
-            .background(innerSurface)
+            .padding(.vertical, 2)
+
+            Rectangle()
+                .fill(.white.opacity(0.08))
+                .frame(height: 0.5)
 
             VStack(spacing: 5) {
                 Text(isCycleComplete ? "SESSION" : "UP NEXT")
@@ -401,15 +424,17 @@ struct TimerWidgetView: View {
                 Button(action: { service.stop() }) {
                     Text(isCycleComplete ? "End Session" : "Stop")
                         .font(.system(size: 12.5, weight: .medium))
-                        .foregroundColor(.white.opacity(0.52))
+                        .foregroundColor(.white.opacity(0.62))
                         .frame(maxWidth: .infinity)
                         .frame(height: 36)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(.white.opacity(0.055))
-                        )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(
+                    FlatNotchButtonStyle(
+                        shape: .rounded(10),
+                        strokeColor: .white.opacity(0.14),
+                        strokeWidth: 0.5
+                    )
+                )
 
                 Button(action: { service.confirmNext() }) {
                     HStack(spacing: 6) {
@@ -418,29 +443,23 @@ struct TimerWidgetView: View {
                         Text(isCycleComplete ? "Repeat Session" : "Start Next")
                             .font(.system(size: 12.5, weight: .semibold))
                     }
-                    .foregroundColor(.black)
+                    .foregroundColor(nextColor)
                     .frame(maxWidth: .infinity)
                     .frame(height: 36)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(nextColor)
-                    )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(
+                    FlatNotchButtonStyle(
+                        shape: .rounded(10),
+                        strokeColor: nextColor.opacity(0.4),
+                        strokeWidth: 0.75,
+                        hoverFillColor: nextColor.opacity(0.06)
+                    )
+                )
             }
         }
     }
 
     // MARK: - Shared Components
-
-    private var innerSurface: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(.white.opacity(0.04))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(.white.opacity(0.055), lineWidth: 0.5)
-            )
-    }
 
     private var sessionDots: some View {
         HStack(spacing: 5) {
@@ -452,7 +471,7 @@ struct TimerWidgetView: View {
                     .fill(
                         isCompleted
                             ? phaseColor
-                            : (isActive ? phaseColor.opacity(0.45) : .white.opacity(0.11))
+                            : (isActive ? phaseColor.opacity(0.45) : .white.opacity(0.12))
                     )
                     .frame(width: isActive ? 7 : 6, height: isActive ? 7 : 6)
             }

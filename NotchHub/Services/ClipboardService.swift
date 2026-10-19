@@ -32,19 +32,22 @@ final class ClipboardService: ObservableObject {
         let timestamp: Date
         let kind: ContentKind
         let sourceAppName: String?
+        let alias: String?
 
         init(
             id: UUID = UUID(),
             text: String,
             timestamp: Date,
             kind: ContentKind? = nil,
-            sourceAppName: String? = nil
+            sourceAppName: String? = nil,
+            alias: String? = nil
         ) {
             self.id = id
             self.text = text
             self.timestamp = timestamp
             self.kind = kind ?? Self.detectKind(for: text)
             self.sourceAppName = sourceAppName
+            self.alias = alias
         }
 
         var preview: String {
@@ -53,12 +56,25 @@ final class ClipboardService: ObservableObject {
             return String(trimmed.prefix(77)) + "..."
         }
 
+        var displayTitle: String {
+            if let alias, !alias.isEmpty { return alias }
+            return preview
+        }
+
+        func matches(search: String) -> Bool {
+            let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+            return query.isEmpty || [alias ?? "", text, sourceAppName ?? "", kind.label].contains {
+                $0.localizedCaseInsensitiveContains(query)
+            }
+        }
+
         private enum CodingKeys: String, CodingKey {
             case id
             case text
             case timestamp
             case kind
             case sourceAppName
+            case alias
         }
 
         init(from decoder: Decoder) throws {
@@ -68,6 +84,7 @@ final class ClipboardService: ObservableObject {
             timestamp = try container.decodeIfPresent(Date.self, forKey: .timestamp) ?? Date()
             kind = try container.decodeIfPresent(ContentKind.self, forKey: .kind) ?? Self.detectKind(for: text)
             sourceAppName = try container.decodeIfPresent(String.self, forKey: .sourceAppName)
+            alias = try container.decodeIfPresent(String.self, forKey: .alias)
         }
 
         func encode(to encoder: Encoder) throws {
@@ -77,6 +94,7 @@ final class ClipboardService: ObservableObject {
             try container.encode(timestamp, forKey: .timestamp)
             try container.encode(kind, forKey: .kind)
             try container.encodeIfPresent(sourceAppName, forKey: .sourceAppName)
+            try container.encodeIfPresent(alias, forKey: .alias)
         }
 
         static func == (lhs: ClipboardItem, rhs: ClipboardItem) -> Bool {
@@ -99,17 +117,39 @@ final class ClipboardService: ObservableObject {
         }
     }
 
+    enum AliasError: LocalizedError {
+        case tooLong
+        case invalidCharacters
+        case itemNotFound
+
+        var errorDescription: String? {
+            switch self {
+            case .tooLong: return "Keep the name to 64 characters or fewer."
+            case .invalidCharacters: return "Use a single line without tabs or control characters."
+            case .itemNotFound: return "This item is no longer saved."
+            }
+        }
+    }
+
     @Published private(set) var history: [ClipboardItem] = []
     @Published private(set) var savedItems: [ClipboardItem] = []
 
     private let maxItems = 20
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
+    private let pasteboard: NSPasteboard
     private var pollingTimer: Timer?
     private var lastChangeCount: Int = 0
 
-    init() {
-        lastChangeCount = NSPasteboard.general.changeCount
+    init(
+        defaults: UserDefaults = .standard,
+        pasteboard: NSPasteboard = .general,
+        startsMonitoring: Bool = true
+    ) {
+        self.defaults = defaults
+        self.pasteboard = pasteboard
+        lastChangeCount = pasteboard.changeCount
         savedItems = loadSavedItems()
+        guard startsMonitoring else { return }
         pollingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.checkClipboard()
         }
@@ -123,10 +163,9 @@ final class ClipboardService: ObservableObject {
     }
 
     func copyToClipboard(_ item: ClipboardItem) {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(item.text, forType: .string)
-        lastChangeCount = pb.changeCount
+        pasteboard.clearContents()
+        pasteboard.setString(item.text, forType: .string)
+        lastChangeCount = pasteboard.changeCount
     }
 
     func isSaved(_ item: ClipboardItem) -> Bool {
@@ -134,19 +173,45 @@ final class ClipboardService: ObservableObject {
     }
 
     func toggleSaved(_ item: ClipboardItem) {
-        if let index = savedItems.firstIndex(where: { $0.text == item.text }) {
-            savedItems.remove(at: index)
+        if isSaved(item) {
+            removeSavedItem(item)
         } else {
-            savedItems.insert(
-                ClipboardItem(
-                    text: item.text,
-                    timestamp: item.timestamp,
-                    kind: item.kind,
-                    sourceAppName: item.sourceAppName
-                ),
-                at: 0
-            )
+            saveItem(item)
         }
+    }
+
+    @discardableResult
+    func saveItem(_ item: ClipboardItem) -> ClipboardItem {
+        if let existing = savedItems.first(where: { $0.text == item.text }) { return existing }
+        let saved = ClipboardItem(
+            text: item.text,
+            timestamp: item.timestamp,
+            kind: item.kind,
+            sourceAppName: item.sourceAppName
+        )
+        savedItems.insert(saved, at: 0)
+        persistSavedItems()
+        return saved
+    }
+
+    func renameSavedItem(id: UUID, alias: String) throws {
+        guard let index = savedItems.firstIndex(where: { $0.id == id }) else {
+            throw AliasError.itemNotFound
+        }
+        let name = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard name.count <= 64 else { throw AliasError.tooLong }
+        guard !name.unicodeScalars.contains(where: {
+            CharacterSet.controlCharacters.contains($0) || CharacterSet.newlines.contains($0)
+        }) else { throw AliasError.invalidCharacters }
+        let item = savedItems[index]
+        savedItems[index] = ClipboardItem(
+            id: item.id,
+            text: item.text,
+            timestamp: item.timestamp,
+            kind: item.kind,
+            sourceAppName: item.sourceAppName,
+            alias: name.isEmpty ? nil : name
+        )
         persistSavedItems()
     }
 
@@ -163,12 +228,11 @@ final class ClipboardService: ObservableObject {
         history.removeAll()
     }
 
-    private func checkClipboard() {
-        let pb = NSPasteboard.general
-        guard pb.changeCount != lastChangeCount else { return }
-        lastChangeCount = pb.changeCount
+    func checkClipboard() {
+        guard pasteboard.changeCount != lastChangeCount else { return }
+        lastChangeCount = pasteboard.changeCount
 
-        guard let text = pb.string(forType: .string),
+        guard let text = pasteboard.string(forType: .string),
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         if let last = history.first, last.text == text { return }
