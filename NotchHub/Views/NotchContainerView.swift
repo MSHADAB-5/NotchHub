@@ -73,7 +73,7 @@ struct NotchContainerView: View {
                 .frame(maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.98))
+        .background(expandedPanelBackground)
         .compositingGroup()
         .clipShape(panelShape, style: FillStyle(eoFill: false, antialiased: false))
         .overlay {
@@ -81,6 +81,15 @@ struct NotchContainerView: View {
                 .stroke(.black.opacity(0.7), lineWidth: 0.75)
         }
         .shadow(color: .black.opacity(0.25), radius: 10, y: 3)
+    }
+
+    private var expandedPanelBackground: Color {
+        switch widgetRegistry.currentPage {
+        case .clipboard, .timer:
+            return .black
+        default:
+            return Color.black.opacity(0.98)
+        }
     }
 
     @ViewBuilder
@@ -267,7 +276,10 @@ struct NotchContainerView: View {
         case .battery:
             BatteryWidgetView(service: batteryService)
         case .clipboard:
-            ClipboardWidgetView(service: clipboardService)
+            ClipboardWidgetView(
+                service: clipboardService,
+                onAliasEditingChanged: viewModel.setClipboardAliasEditing
+            )
         case .timer:
             TimerWidgetView(service: timerService)
         }
@@ -301,7 +313,7 @@ struct NotchContainerView: View {
                 id: "clipboard.saved.\(first.id.uuidString)",
                 systemImage: "star.fill",
                 title: "Saved to Tray",
-                subtitle: first.preview,
+                subtitle: first.displayTitle,
                 tint: .yellow,
                 duration: 2.0
             )

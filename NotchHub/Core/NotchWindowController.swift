@@ -122,7 +122,7 @@ final class NotchWindowController: NSObject, ObservableObject {
             hoverRect = panelFrame
         }
 
-        let mouseIsNowInside = hoverRect.contains(mouseLocation)
+        let mouseIsNowInside = hoverRect.contains(mouseLocation) || viewModel.isEditingClipboardAlias
 
         if mouseIsNowInside && !isMouseInside {
             isMouseInside = true

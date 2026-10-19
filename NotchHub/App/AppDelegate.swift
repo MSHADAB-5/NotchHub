@@ -77,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 {
+                if self?.viewModel.isEditingClipboardAlias == true { return event }
                 self?.viewModel.dismiss()
                 return nil
             }

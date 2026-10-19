@@ -77,7 +77,7 @@ final class NotchViewModelTests: XCTestCase {
     // MARK: - Peek
 
     func testPeekTransitionAndAutoCollapse() {
-        viewModel.showPeek(id: "test", duration: 0.1)
+        viewModel.showPeek(id: "test", systemImage: "star", title: "Test", duration: 0.1)
         XCTAssertEqual(viewModel.state, .peeking(id: "test"))
         XCTAssertTrue(viewModel.isExpanded)
 
@@ -93,7 +93,7 @@ final class NotchViewModelTests: XCTestCase {
 
     func testClickOutsideDismissesExpanded() {
         // We can't easily async-expand in tests, so test dismiss path directly
-        viewModel.showPeek(id: "test", duration: 10) // long duration so it stays
+        viewModel.showPeek(id: "test", systemImage: "star", title: "Test", duration: 10) // long duration so it stays
         viewModel.clickedOutside()
         // Peeking doesn't dismiss on clickOutside per current logic — only expanded/pinned do
         // Actually our current code handles expanded and pinned
@@ -104,10 +104,77 @@ final class NotchViewModelTests: XCTestCase {
     func testIsExpandedForVariousStates() {
         XCTAssertFalse(viewModel.isExpanded) // collapsed
 
-        viewModel.showPeek(id: "x", duration: 10)
+        viewModel.showPeek(id: "x", systemImage: "star", title: "Test", duration: 10)
         XCTAssertTrue(viewModel.isExpanded) // peeking
 
         viewModel.dismiss()
         XCTAssertFalse(viewModel.isExpanded) // collapsed again
+    }
+
+    func testAliasEditingCancelsPendingHoverCollapse() {
+        expandPanel()
+        viewModel.collapseDelayMs = 30
+        viewModel.mouseExited()
+        viewModel.setClipboardAliasEditing(true)
+        waitForTransition()
+        XCTAssertEqual(viewModel.state, .expanded)
+        XCTAssertTrue(viewModel.isEditingClipboardAlias)
+    }
+
+    func testAliasEditingDefersMouseExitUntilEditingEnds() {
+        expandPanel()
+        viewModel.setClipboardAliasEditing(true)
+        viewModel.mouseExited()
+        waitForTransition()
+        XCTAssertEqual(viewModel.state, .expanded)
+        viewModel.setClipboardAliasEditing(false)
+        viewModel.mouseExited()
+        waitForTransition()
+        XCTAssertEqual(viewModel.state, .collapsed)
+    }
+
+    func testAliasEditingPreservesExplicitPinState() {
+        expandPanel()
+        viewModel.togglePin()
+        viewModel.setClipboardAliasEditing(true)
+        viewModel.setClipboardAliasEditing(false)
+        viewModel.mouseExited()
+        XCTAssertTrue(viewModel.isPinned)
+        viewModel.setClipboardAliasEditing(true)
+        viewModel.togglePin()
+        XCTAssertFalse(viewModel.isEditingClipboardAlias)
+        XCTAssertEqual(viewModel.state, .collapsed)
+    }
+
+    func testDismissAndClickOutsideClearAliasInteraction() {
+        expandPanel()
+        viewModel.setClipboardAliasEditing(true)
+        viewModel.dismiss()
+        XCTAssertFalse(viewModel.isEditingClipboardAlias)
+        expandPanel()
+        viewModel.setClipboardAliasEditing(true)
+        viewModel.clickedOutside()
+        XCTAssertFalse(viewModel.isEditingClipboardAlias)
+        XCTAssertEqual(viewModel.state, .collapsed)
+    }
+
+    func testCollapsedPanelCannotStartAliasEditing() {
+        viewModel.setClipboardAliasEditing(true)
+        XCTAssertFalse(viewModel.isEditingClipboardAlias)
+        XCTAssertEqual(viewModel.state, .collapsed)
+    }
+
+    private func expandPanel() {
+        viewModel.mouseEntered()
+        waitForTransition()
+        XCTAssertEqual(viewModel.state, .expanded)
+    }
+
+    private func waitForTransition() {
+        let transition = expectation(description: "Panel transition")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+            transition.fulfill()
+        }
+        wait(for: [transition], timeout: 1)
     }
 }

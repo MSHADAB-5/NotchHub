@@ -37,11 +37,23 @@ final class SettingsService: ObservableObject {
         didSet { save() }
     }
 
+    @Published var primaryClockTimeZoneIdentifier: String {
+        didSet { save() }
+    }
+
     @Published var referenceClockTimeZoneIdentifier: String {
         didSet { save() }
     }
 
-    private let defaults = UserDefaults.standard
+    var primaryClockTimeZone: TimeZone {
+        ClockTimeZone.resolve(primaryClockTimeZoneIdentifier)
+    }
+
+    var referenceClockTimeZone: TimeZone {
+        ClockTimeZone.resolve(referenceClockTimeZoneIdentifier, fallback: ClockTimeZone.defaultReferenceIdentifier)
+    }
+
+    private let defaults: UserDefaults
 
     private enum Keys {
         static let launchAtLogin = "launchAtLogin"
@@ -52,10 +64,12 @@ final class SettingsService: ObservableObject {
         static let peekNotificationsEnabled = "peekNotificationsEnabled"
         static let defaultWidgetKey = "defaultWidgetKey"
         static let panelSizePreset = "panelSizePreset"
+        static let primaryClockTimeZoneIdentifier = "primaryClockTimeZoneIdentifier"
         static let referenceClockTimeZoneIdentifier = "referenceClockTimeZoneIdentifier"
     }
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
         expandOnHover = defaults.object(forKey: Keys.expandOnHover) as? Bool ?? true
         collapseDelay = defaults.object(forKey: Keys.collapseDelay) as? Double ?? 0.3
@@ -63,8 +77,14 @@ final class SettingsService: ObservableObject {
         peekNotificationsEnabled = defaults.object(forKey: Keys.peekNotificationsEnabled) as? Bool ?? true
         defaultWidgetKey = defaults.string(forKey: Keys.defaultWidgetKey) ?? WidgetPage.media.settingsKey
         panelSizePreset = defaults.string(forKey: Keys.panelSizePreset) ?? "standard"
-        referenceClockTimeZoneIdentifier =
-            defaults.string(forKey: Keys.referenceClockTimeZoneIdentifier) ?? "Europe/Paris"
+        primaryClockTimeZoneIdentifier = ClockTimeZone.validatedIdentifier(
+            defaults.string(forKey: Keys.primaryClockTimeZoneIdentifier),
+            fallback: ClockTimeZone.followMacIdentifier
+        )
+        referenceClockTimeZoneIdentifier = ClockTimeZone.validatedIdentifier(
+            defaults.string(forKey: Keys.referenceClockTimeZoneIdentifier),
+            fallback: ClockTimeZone.defaultReferenceIdentifier
+        )
 
         if let saved = defaults.stringArray(forKey: Keys.enabledWidgets) {
             enabledWidgets = Set(saved)
@@ -88,6 +108,7 @@ final class SettingsService: ObservableObject {
         defaults.set(peekNotificationsEnabled, forKey: Keys.peekNotificationsEnabled)
         defaults.set(defaultWidgetKey, forKey: Keys.defaultWidgetKey)
         defaults.set(panelSizePreset, forKey: Keys.panelSizePreset)
+        defaults.set(primaryClockTimeZoneIdentifier, forKey: Keys.primaryClockTimeZoneIdentifier)
         defaults.set(referenceClockTimeZoneIdentifier, forKey: Keys.referenceClockTimeZoneIdentifier)
     }
 
